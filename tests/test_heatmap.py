@@ -73,12 +73,15 @@ class TestGenreHeatmap:
         assert all(len(row) == 13 for row in body["cells"])
 
     async def test_documents_counted_in_their_cells(self, client, temp_db):
-        _seed_documents(temp_db, [
-            ("d1", 4, 8, 1),   # Industria × Informe técnico, complete
-            ("d2", 4, 8, 1),
-            ("d3", 4, 8, 0),   # incomplete counts fractionally
-            ("d4", 1, 1, 1),   # Política × Discurso
-        ])
+        _seed_documents(
+            temp_db,
+            [
+                ("d1", 4, 8, 1),  # Industria × Informe técnico, complete
+                ("d2", 4, 8, 1),
+                ("d3", 4, 8, 0),  # incomplete counts fractionally
+                ("d4", 1, 1, 1),  # Política × Discurso
+            ],
+        )
         r = await client.get("/api/heatmap/genres")
         body = r.json()
         assert body["available"] is True
@@ -89,10 +92,13 @@ class TestGenreHeatmap:
         assert body["cells"][3][7] == pytest.approx(0.11)
 
     async def test_unclassified_documents_bucket_separately(self, client, temp_db):
-        _seed_documents(temp_db, [
-            ("d1", 4, None, 1),
-            ("d2", 4, None, 1),
-        ])
+        _seed_documents(
+            temp_db,
+            [
+                ("d1", 4, None, 1),
+                ("d2", 4, None, 1),
+            ],
+        )
         r = await client.get("/api/heatmap/genres")
         body = r.json()
         assert body["unclassified"][3] == 2
@@ -141,13 +147,16 @@ class TestGenreMonthStrip:
         assert "critical_months" in body
 
     async def test_strip_counts_documents_per_month(self, client, temp_db):
-        _seed_documents(temp_db, [
-            ("d1", 4, 8, 1),   # all seeded at 1972-10
-            ("d2", 4, 8, 1),
-            ("d3", 4, 8, 0),   # incomplete → fractional
-            ("d4", 4, 1, 1),   # other genre — must not count
-            ("d5", 1, 8, 1),   # other theme — must not count
-        ])
+        _seed_documents(
+            temp_db,
+            [
+                ("d1", 4, 8, 1),  # all seeded at 1972-10
+                ("d2", 4, 8, 1),
+                ("d3", 4, 8, 0),  # incomplete → fractional
+                ("d4", 4, 1, 1),  # other genre — must not count
+                ("d5", 1, 8, 1),  # other theme — must not count
+            ],
+        )
         r = await client.get("/api/heatmap/genres/months?category_id=4&genre_id=8")
         body = r.json()
         idx = body["months"].index("1972-10")
@@ -163,5 +172,9 @@ class TestGenreMonthStrip:
         assert sum(body["doc_counts"]) == 1
 
     async def test_strip_rejects_out_of_range(self, client, temp_db):
-        assert (await client.get("/api/heatmap/genres/months?category_id=0&genre_id=1")).status_code == 422
-        assert (await client.get("/api/heatmap/genres/months?category_id=1&genre_id=14")).status_code == 422
+        assert (
+            await client.get("/api/heatmap/genres/months?category_id=0&genre_id=1")
+        ).status_code == 422
+        assert (
+            await client.get("/api/heatmap/genres/months?category_id=1&genre_id=14")
+        ).status_code == 422

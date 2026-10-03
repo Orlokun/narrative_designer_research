@@ -35,8 +35,10 @@ def clamp_axis(value: object) -> float | None:
 
 
 def political_distance(
-    econ_a: float | None, soc_a: float | None,
-    econ_b: float | None, soc_b: float | None,
+    econ_a: float | None,
+    soc_a: float | None,
+    econ_b: float | None,
+    soc_b: float | None,
 ) -> float | None:
     """Euclidean distance between two compass positions, or None if any is unknown."""
     if None in (econ_a, soc_a, econ_b, soc_b):
@@ -65,8 +67,10 @@ def compass_quadrant(econ: float | None, soc: float | None) -> str:
 
 def refine_relation_kind(
     kind: str,
-    econ_a: float | None, soc_a: float | None,
-    econ_b: float | None, soc_b: float | None,
+    econ_a: float | None,
+    soc_a: float | None,
+    econ_b: float | None,
+    soc_b: float | None,
 ) -> str:
     """Second-guess a relation kind using the pair's ideological distance.
 

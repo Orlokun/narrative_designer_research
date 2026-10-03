@@ -60,6 +60,7 @@ def _get_cache() -> diskcache.Cache:
 # Lifespan
 # ---------------------------------------------------------------------------
 
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
     global _registry, _cache
@@ -102,6 +103,7 @@ app = FastAPI(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _extract_domain(url: str) -> str:
     return urlparse(url).netloc
 
@@ -130,12 +132,7 @@ def _api_key_headers(domain: str) -> dict[str, str]:
 
 def _is_binary(content_type: str) -> bool:
     ct = content_type.lower()
-    return not (
-        ct.startswith("text/")
-        or "json" in ct
-        or "xml" in ct
-        or "javascript" in ct
-    )
+    return not (ct.startswith("text/") or "json" in ct or "xml" in ct or "javascript" in ct)
 
 
 def _append_log_sync(path: Path, entry: dict) -> None:
@@ -164,6 +161,7 @@ def _cache_set(url: str, response: FetchResponse) -> None:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.post("/fetch", response_model=FetchResponse, summary="Fetch a URL via the Gatekeeper")
 async def fetch(req: FetchRequest) -> FetchResponse:
     """
@@ -186,7 +184,6 @@ async def fetch(req: FetchRequest) -> FetchResponse:
     # --- Acquire per-domain lock (serialises requests to same domain) ---
     state = await registry.get_state(domain)
     async with state.lock:
-
         # Double-check cache: another coroutine may have fetched while we waited
         cached = await asyncio.to_thread(_cache_get, req.url)
         if cached is not None:
@@ -215,7 +212,9 @@ async def fetch(req: FetchRequest) -> FetchResponse:
             async with httpx.AsyncClient(
                 timeout=req.timeout_s,
                 follow_redirects=True,
-                headers={"User-Agent": "CyberSynResearchBot/0.1 (academic; oguerrerofarias@gmail.com)"},
+                headers={
+                    "User-Agent": "CyberSynResearchBot/0.1 (academic; oguerrerofarias@gmail.com)"
+                },
             ) as client:
                 resp = await client.get(req.url, headers=request_headers)
         except Exception as exc:
@@ -223,30 +222,44 @@ async def fetch(req: FetchRequest) -> FetchResponse:
                 registry.circuit_breaker_threshold,
                 registry.cooldown_seconds,
             )
-            await _write_log({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "url": req.url,
-                "domain": domain,
-                "mission_id": req.mission_id,
-                "error": str(exc),
-                "circuit_breaker_tripped": tripped,
-            })
-            log.error("gatekeeper.fetch_error", url=req.url, domain=domain, error=str(exc), tripped=tripped)
-            raise HTTPException(status_code=502, detail=f"Network error fetching '{req.url}': {exc}") from exc
+            await _write_log(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "url": req.url,
+                    "domain": domain,
+                    "mission_id": req.mission_id,
+                    "error": str(exc),
+                    "circuit_breaker_tripped": tripped,
+                }
+            )
+            log.error(
+                "gatekeeper.fetch_error",
+                url=req.url,
+                domain=domain,
+                error=str(exc),
+                tripped=tripped,
+            )
+            raise HTTPException(
+                status_code=502, detail=f"Network error fetching '{req.url}': {exc}"
+            ) from exc
 
         duration_ms = (time.monotonic() - t0) * 1000
 
         # --- Handle upstream 429 ---
         if resp.status_code == 429:
-            paused_s = state.record_rate_limited(_parse_retry_after(resp.headers.get("retry-after")))
-            await _write_log({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "url": req.url,
-                "domain": domain,
-                "mission_id": req.mission_id,
-                "status_code": 429,
-                "action": f"domain_paused_{int(paused_s)}s",
-            })
+            paused_s = state.record_rate_limited(
+                _parse_retry_after(resp.headers.get("retry-after"))
+            )
+            await _write_log(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "url": req.url,
+                    "domain": domain,
+                    "mission_id": req.mission_id,
+                    "status_code": 429,
+                    "action": f"domain_paused_{int(paused_s)}s",
+                }
+            )
             log.warning(
                 "gatekeeper.source_rate_limited",
                 domain=domain,
@@ -264,16 +277,20 @@ async def fetch(req: FetchRequest) -> FetchResponse:
                 registry.circuit_breaker_threshold,
                 registry.cooldown_seconds,
             )
-            await _write_log({
-                "timestamp": datetime.now(UTC).isoformat(),
-                "url": req.url,
-                "domain": domain,
-                "mission_id": req.mission_id,
-                "status_code": resp.status_code,
-                "circuit_breaker_tripped": tripped,
-                "duration_ms": round(duration_ms, 1),
-            })
-            log.error("gatekeeper.upstream_error", domain=domain, status=resp.status_code, tripped=tripped)
+            await _write_log(
+                {
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "url": req.url,
+                    "domain": domain,
+                    "mission_id": req.mission_id,
+                    "status_code": resp.status_code,
+                    "circuit_breaker_tripped": tripped,
+                    "duration_ms": round(duration_ms, 1),
+                }
+            )
+            log.error(
+                "gatekeeper.upstream_error", domain=domain, status=resp.status_code, tripped=tripped
+            )
             raise HTTPException(
                 status_code=502,
                 detail=f"Source '{domain}' returned {resp.status_code}.",
@@ -299,17 +316,19 @@ async def fetch(req: FetchRequest) -> FetchResponse:
 
         await asyncio.to_thread(_cache_set, req.url, response)
 
-        await _write_log({
-            "timestamp": response.fetched_at.isoformat(),
-            "url": req.url,
-            "domain": domain,
-            "mission_id": req.mission_id,
-            "status_code": resp.status_code,
-            "content_type": content_type,
-            "binary": binary,
-            "cached": False,
-            "duration_ms": round(duration_ms, 1),
-        })
+        await _write_log(
+            {
+                "timestamp": response.fetched_at.isoformat(),
+                "url": req.url,
+                "domain": domain,
+                "mission_id": req.mission_id,
+                "status_code": resp.status_code,
+                "content_type": content_type,
+                "binary": binary,
+                "cached": False,
+                "duration_ms": round(duration_ms, 1),
+            }
+        )
 
         log.info(
             "gatekeeper.fetched",
@@ -324,7 +343,9 @@ async def fetch(req: FetchRequest) -> FetchResponse:
 
 
 @app.get("/status", summary="Circuit-breaker and rate-limit state per domain")
-async def status(domain: str | None = Query(default=None, description="Filter by domain substring")) -> JSONResponse:
+async def status(
+    domain: str | None = Query(default=None, description="Filter by domain substring"),
+) -> JSONResponse:
     """Returns current state for all domains seen since startup."""
     statuses = _get_registry().all_statuses(domain_filter=domain)
     return JSONResponse(content={"domains": statuses, "count": len(statuses)})
@@ -350,7 +371,11 @@ async def fetch_log(n: int = Query(default=50, ge=1, le=1000)) -> JSONResponse:
 
 
 @app.delete("/cache", summary="Clear disk cache (all or one domain)")
-async def clear_cache(domain: str | None = Query(default=None, description="If set, only evict entries for this domain")) -> JSONResponse:
+async def clear_cache(
+    domain: str | None = Query(
+        default=None, description="If set, only evict entries for this domain"
+    ),
+) -> JSONResponse:
     """
     Clears cached responses. Use `?domain=memoriachilena.gob.cl` to be selective.
     Without a domain filter, clears everything.
@@ -385,10 +410,12 @@ async def health() -> JSONResponse:
 # Entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     import uvicorn
 
     from lib.logging_setup import configure_logging
+
     configure_logging()
     uvicorn.run(
         "research_engine.gatekeeper.app:app",

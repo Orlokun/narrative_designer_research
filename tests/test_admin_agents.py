@@ -49,8 +49,16 @@ def _seed(db_path, rows):
                (doc_id, sha256, verified_at, mapped_category_id, mapped_genre_id,
                 mapped_month_iso, doc_tag, mapped_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (doc_id, doc_id, "2026-01-01T00:00:00Z" if verified else None,
-             cat, genre, month, tag, mapped_at),
+            (
+                doc_id,
+                doc_id,
+                "2026-01-01T00:00:00Z" if verified else None,
+                cat,
+                genre,
+                month,
+                tag,
+                mapped_at,
+            ),
         )
     conn.commit()
     conn.close()
@@ -63,13 +71,16 @@ class TestMapperStats:
         assert r.json()["available"] is False
 
     async def test_counts_and_distributions(self, client, temp_db):
-        _seed(temp_db, [
-            ("d1", True, 1, 1, "1970-11", None, "2026-01-02T10:00:00Z"),
-            ("d2", True, 1, 6, "1972-10", None, "2026-01-02T11:00:00Z"),
-            ("d3", True, 4, None, "1972-10", None, "2026-01-02T12:00:00Z"),  # sin género
-            ("d4", True, None, None, None, None, None),                     # pendiente
-            ("d5", True, None, None, None, "context", "2026-01-02T09:00:00Z"),
-        ])
+        _seed(
+            temp_db,
+            [
+                ("d1", True, 1, 1, "1970-11", None, "2026-01-02T10:00:00Z"),
+                ("d2", True, 1, 6, "1972-10", None, "2026-01-02T11:00:00Z"),
+                ("d3", True, 4, None, "1972-10", None, "2026-01-02T12:00:00Z"),  # sin género
+                ("d4", True, None, None, None, None, None),  # pendiente
+                ("d5", True, None, None, None, "context", "2026-01-02T09:00:00Z"),
+            ],
+        )
         r = await client.get("/api/agents/mapper")
         body = r.json()
         assert body["available"] is True
@@ -87,10 +98,13 @@ class TestMapperStats:
         assert categories["Industria Nacional"] == 1
 
     async def test_recent_ordered_by_mapped_at_desc(self, client, temp_db):
-        _seed(temp_db, [
-            ("d1", True, 1, 1, "1970-11", None, "2026-01-02T10:00:00Z"),
-            ("d2", True, 2, 6, "1971-01", None, "2026-01-03T10:00:00Z"),
-        ])
+        _seed(
+            temp_db,
+            [
+                ("d1", True, 1, 1, "1970-11", None, "2026-01-02T10:00:00Z"),
+                ("d2", True, 2, 6, "1971-01", None, "2026-01-03T10:00:00Z"),
+            ],
+        )
         r = await client.get("/api/agents/mapper")
         recent = r.json()["recent"]
         assert [d["doc_id"] for d in recent] == ["d2", "d1"]

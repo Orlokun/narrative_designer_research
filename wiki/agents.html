@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agents — Cybersyn Wiki</title>
+<title>Agents — Research Engine Wiki</title>
 <link rel="stylesheet" href="assets/wiki.css">
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
   <nav class="top">
     <a href="index.html">Home</a>
     <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
     <a href="architecture.html">Architecture</a>
     <a href="agents.html" class="here">Agents</a>
     <a href="data-model.html">Data Model</a>
@@ -33,6 +34,8 @@
   <h2>Research Engine</h2>
   <table>
     <tr><th>Agent</th><th>ID</th><th>Status</th><th>Role</th></tr>
+    <tr><td><a href="platform.html#grid-proposer">Grid Proposer</a></td><td>RE-0</td><td><span class="badge real">Real</span></td><td>Historical moment → project spec (themes, critical months, seeds, prompts); LLM-drafted, deterministically completed; <code>--no-llm</code> skeleton.</td></tr>
+    <tr><td><a href="platform.html#source-scout">Source Scout</a></td><td>RE-0b</td><td><span class="badge real">Real</span></td><td>Filters the connector catalogue by language/region/years, probes the survivors through the Gatekeeper, recommends and applies <code>source_tiers</code>.</td></tr>
     <tr><td><a href="agent-propositor.html">Propositor</a></td><td>RE-1</td><td><span class="badge real">Real</span></td><td>Gap detection, mission generation.</td></tr>
     <tr><td><a href="gatekeeper.html">Gatekeeper</a></td><td>—</td><td><span class="badge real">Real</span></td><td>HTTP gateway: rate limits, circuit breaker, disk cache (:8001).</td></tr>
     <tr><td>Chronicler</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: enrich docs with speech acts, characters, places.</td></tr>
@@ -61,6 +64,7 @@
   <table>
     <tr><th>Agent</th><th>Status</th><th>Role</th></tr>
     <tr><td><a href="director.html">Director</a></td><td><span class="badge real">Real</span></td><td>Custom orchestrator: one WorldState flows through registered async nodes.</td></tr>
+    <tr><td><a href="platform.html#knowledge">Knowledge API</a></td><td><span class="badge real">Real</span></td><td><code>lib/knowledge.py</code> — read-only consultation of the archive for the Director: documents, character dossiers, relations, places ranked for a game situation; <code>as_prompt()</code> evidence block.</td></tr>
     <tr><td>Event Generator</td><td><span class="badge stub">Stub</span></td><td>Intended: emit narrative events calibrated by tension/world state.</td></tr>
     <tr><td>NPC Pool</td><td><span class="badge stub">Stub</span></td><td>Intended: manage NPC personas.</td></tr>
     <tr><td>Ledger / Logger / Registrador</td><td><span class="badge stub">Stub</span></td><td>Intended: runtime bookkeeping &amp; event recording.</td></tr>
@@ -88,6 +92,6 @@
   </div>
 </main>
 
-<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
 </body>
 </html>

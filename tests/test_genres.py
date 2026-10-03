@@ -13,8 +13,16 @@ from lib.genres import (
 
 # Connectors actually wired through the Gatekeeper/Archivero today.
 _KNOWN_CONNECTORS = {
-    "archive.org", "openalex", "crossref", "wikisource_es", "frus",
-    "semantic_scholar", "chronicling_america", "marxists", "wikipedia_es", "web_serp",
+    "archive.org",
+    "openalex",
+    "crossref",
+    "wikisource_es",
+    "frus",
+    "semantic_scholar",
+    "chronicling_america",
+    "marxists",
+    "wikipedia_es",
+    "web_serp",
     "foia_chile",
 }
 

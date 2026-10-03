@@ -41,9 +41,7 @@ class TestEnsureCoverageTable:
                 PRIMARY KEY (category_id, month_iso)
             )
         """)
-        mem_conn.execute(
-            "INSERT INTO coverage VALUES (3, '1972-10', 0.6, '2026-01-01')"
-        )
+        mem_conn.execute("INSERT INTO coverage VALUES (3, '1972-10', 0.6, '2026-01-01')")
         ensure_coverage_table(mem_conn)
         row = mem_conn.execute(
             "SELECT genre_id, coverage_score FROM coverage "
@@ -52,17 +50,18 @@ class TestEnsureCoverageTable:
         assert row["genre_id"] == GENRE_UNCLASSIFIED
         assert row["coverage_score"] == pytest.approx(0.6)
         # Legacy scratch table must be gone.
-        tables = {r[0] for r in mem_conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )}
+        tables = {
+            r[0] for r in mem_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
         assert tables == {"coverage"}
 
 
 class TestUpsertCoverageScore:
     def test_inserts_scored_cell(self, mem_conn):
         ensure_coverage_table(mem_conn)
-        upsert_coverage_score(mem_conn, category_id=4, month_iso="1972-10",
-                              docs_found=3, genre_id=8)
+        upsert_coverage_score(
+            mem_conn, category_id=4, month_iso="1972-10", docs_found=3, genre_id=8
+        )
         row = mem_conn.execute(
             "SELECT coverage_score FROM coverage "
             "WHERE category_id=4 AND genre_id=8 AND month_iso='1972-10'"
@@ -78,20 +77,24 @@ class TestUpsertCoverageScore:
 
     def test_same_cell_updates_in_place(self, mem_conn):
         ensure_coverage_table(mem_conn)
-        upsert_coverage_score(mem_conn, category_id=4, month_iso="1972-10",
-                              docs_found=1, genre_id=8)
-        upsert_coverage_score(mem_conn, category_id=4, month_iso="1972-10",
-                              docs_found=4, genre_id=8)
+        upsert_coverage_score(
+            mem_conn, category_id=4, month_iso="1972-10", docs_found=1, genre_id=8
+        )
+        upsert_coverage_score(
+            mem_conn, category_id=4, month_iso="1972-10", docs_found=4, genre_id=8
+        )
         rows = mem_conn.execute("SELECT coverage_score FROM coverage").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == pytest.approx(0.8)
 
     def test_genres_are_independent_cells(self, mem_conn):
         ensure_coverage_table(mem_conn)
-        upsert_coverage_score(mem_conn, category_id=4, month_iso="1972-10",
-                              docs_found=5, genre_id=1)
-        upsert_coverage_score(mem_conn, category_id=4, month_iso="1972-10",
-                              docs_found=1, genre_id=6)
+        upsert_coverage_score(
+            mem_conn, category_id=4, month_iso="1972-10", docs_found=5, genre_id=1
+        )
+        upsert_coverage_score(
+            mem_conn, category_id=4, month_iso="1972-10", docs_found=1, genre_id=6
+        )
         rows = mem_conn.execute(
             "SELECT genre_id, coverage_score FROM coverage ORDER BY genre_id"
         ).fetchall()
@@ -99,6 +102,7 @@ class TestUpsertCoverageScore:
 
     def test_caps_at_one(self, mem_conn):
         ensure_coverage_table(mem_conn)
-        upsert_coverage_score(mem_conn, category_id=5, month_iso="1973-06",
-                              docs_found=10, genre_id=2)
+        upsert_coverage_score(
+            mem_conn, category_id=5, month_iso="1973-06", docs_found=10, genre_id=2
+        )
         assert mem_conn.execute("SELECT coverage_score FROM coverage").fetchone()[0] == 1.0

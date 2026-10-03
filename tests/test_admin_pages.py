@@ -10,7 +10,16 @@ from httpx import ASGITransport, AsyncClient
 
 from admin.app import app
 
-PAGES = ["/", "/propositor", "/archivero", "/verificator", "/mapper", "/cast-manager", "/cast-director", "/performance"]
+PAGES = [
+    "/",
+    "/propositor",
+    "/archivero",
+    "/verificator",
+    "/mapper",
+    "/cast-manager",
+    "/cast-director",
+    "/performance",
+]
 
 
 @pytest.fixture()

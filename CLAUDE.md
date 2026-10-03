@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Multi-agent research pipeline for a game-based simulation of Project Cybersyn (Allende-era
-Chile, 1969–1973), built as part of an MPhil in Digital Humanities at Cambridge. The
-pipeline harvests historical documents, structures them into a 16×13×48 (theme × genre ×
-month) coverage matrix, and
-will eventually power LLM-driven NPC dialogue grounded in period sources.
+Reusable multi-agent research engine for historical narrative design. A historical moment is
+described by a project spec (`projects/<slug>/project.yaml`, drafted by the Grid Proposer and
+source-routed by the Source Scout); the pipeline harvests period documents into a theme × genre ×
+month coverage matrix, extracts cast and places, and the Knowledge API lets a game Director
+consult the archive. Translated from the Project Cybersyn engine (Allende-era Chile, 1969–1973,
+MPhil in Digital Humanities, Cambridge), which ships as the reference project.
 
 ## ▶ Source of truth: the wiki (read before, update after)
 
@@ -34,6 +35,7 @@ wiki — kept in one place to avoid drift. Do not duplicate that detail back int
 | Topic | Page |
 |---|---|
 | Engineering principles, conventions, the working protocol | `wiki/rules.html` |
+| The reusable platform: project spec, Grid Proposer, Source Scout, LLM providers, Knowledge API | `wiki/platform.html` |
 | Data flow, SQLite-as-truth, source routing, mission logic | `wiki/architecture.html` |
 | Every agent, ID, role and build status | `wiki/agents.html` (+ per-agent pages) |
 | Propositor / Archivero / Verificator / Mapper / Gatekeeper / Director | `wiki/agent-*.html`, `wiki/gatekeeper.html`, `wiki/director.html` |

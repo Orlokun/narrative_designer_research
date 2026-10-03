@@ -171,6 +171,7 @@ class OllamaClient:
                 body = await r.aread()
                 raise OllamaError(f"/api/chat -> {r.status_code}: {body[:500]!r}")
             import json
+
             async for line in r.aiter_lines():
                 if not line.strip():
                     continue

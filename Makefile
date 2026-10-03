@@ -12,6 +12,7 @@
         cast-clean cast-clean-apply \
         cast-director cast-director-status \
         curate curate-all curate-status curate-recurate \
+        new-project project-show scout scout-apply \
         pipeline pipeline-loop pipeline-characters drain drain-loop \
         reset \
         docker-build docker-up docker-down docker-logs docker-ps
@@ -32,6 +33,26 @@ lint:
 
 fmt:
 	uv run ruff format .
+
+# ── Platform: set up a new historical moment ───────────────────────────────────
+# make new-project MOMENT="Weimar Berlin 1929-33" START=1929-10 END=1933-03 REGION=Germany LANG=de SLUG=weimar
+# then edit projects/$(SLUG)/project.yaml, run `make scout-apply P=$(SLUG)` (Gatekeeper up),
+# and set RESEARCH_PROJECT=$(SLUG) in .env.
+
+LANG ?= en
+P ?= cybersyn
+
+new-project:
+	uv run grid-proposer propose --moment "$(MOMENT)" --start $(START) --end $(END) --region "$(REGION)" --language $(LANG) --slug $(SLUG)
+
+project-show:
+	uv run grid-proposer show $(P)
+
+scout:
+	uv run source-scout run --project $(P)
+
+scout-apply:
+	uv run source-scout run --project $(P) --apply
 
 # ── Run services locally ───────────────────────────────────────────────────────
 

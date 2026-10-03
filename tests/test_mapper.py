@@ -571,9 +571,7 @@ def test_tag_as_context_sets_doc_tag(db):
 
     _tag_as_context(db, doc_id="doc002")
 
-    row = db.execute(
-        "SELECT doc_tag, mapped_at FROM documents WHERE doc_id = 'doc002'"
-    ).fetchone()
+    row = db.execute("SELECT doc_tag, mapped_at FROM documents WHERE doc_id = 'doc002'").fetchone()
 
     assert row["doc_tag"] == "context"
     assert row["mapped_at"] is not None  # ISO timestamp should be set
@@ -592,8 +590,16 @@ def _insert_doc(db, doc_id, verified_at=None, mapped_category_id=None, mapped_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            doc_id, f"Title {doc_id}", f"Text {doc_id}", "PRESS", "src", doc_id,
-            "2026-04-25T10:00:00Z", verified_at, mapped_category_id, mapped_at,
+            doc_id,
+            f"Title {doc_id}",
+            f"Text {doc_id}",
+            "PRESS",
+            "src",
+            doc_id,
+            "2026-04-25T10:00:00Z",
+            verified_at,
+            mapped_category_id,
+            mapped_at,
         ),
     )
     db.commit()
@@ -609,13 +615,19 @@ def test_fetch_all_verified_with_before_ts_excludes_already_processed(db):
     _insert_doc(db, "d_unmapped", verified_at="2026-04-25T11:00:00Z")
     # Verified, mapped before session → should be returned (eligible for remap)
     _insert_doc(
-        db, "d_old_mapped", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T11:30:00+00:00",
+        db,
+        "d_old_mapped",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T11:30:00+00:00",
     )
     # Verified, mapped during session → should be EXCLUDED
     _insert_doc(
-        db, "d_just_mapped", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T12:30:00+00:00",
+        db,
+        "d_just_mapped",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T12:30:00+00:00",
     )
 
     rows = _fetch_all_verified_documents(db, batch_size=10, before_ts=session_start)
@@ -632,8 +644,11 @@ def test_fetch_all_verified_without_before_ts_returns_everything(db):
 
     _insert_doc(db, "d1", verified_at="2026-04-25T11:00:00Z")
     _insert_doc(
-        db, "d2", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T12:30:00+00:00",
+        db,
+        "d2",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T12:30:00+00:00",
     )
 
     rows = _fetch_all_verified_documents(db, batch_size=10)
@@ -646,8 +661,11 @@ def test_fetch_mapped_documents_only_returns_mapped(db):
 
     _insert_doc(db, "d_unmapped", verified_at="2026-04-25T11:00:00Z")
     _insert_doc(
-        db, "d_mapped", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T11:30:00+00:00",
+        db,
+        "d_mapped",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T11:30:00+00:00",
     )
 
     rows = _fetch_mapped_documents(db, batch_size=10)
@@ -664,12 +682,18 @@ def test_fetch_mapped_documents_with_before_ts_filters_recent_remaps(db):
     session_start = "2026-04-25T12:00:00+00:00"
 
     _insert_doc(
-        db, "d_old", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T11:30:00+00:00",
+        db,
+        "d_old",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T11:30:00+00:00",
     )
     _insert_doc(
-        db, "d_recent", verified_at="2026-04-25T11:00:00Z",
-        mapped_category_id=1, mapped_at="2026-04-25T12:30:00+00:00",
+        db,
+        "d_recent",
+        verified_at="2026-04-25T11:00:00Z",
+        mapped_category_id=1,
+        mapped_at="2026-04-25T12:30:00+00:00",
     )
 
     rows = _fetch_mapped_documents(db, batch_size=10, before_ts=session_start)
@@ -840,9 +864,7 @@ def test_save_mapping_stores_genre(db):
 
     _save_mapping(db, doc_id="doc_g", category_ids=[1], month_iso="1971-05", genre_id=7)
 
-    row = db.execute(
-        "SELECT mapped_genre_id FROM documents WHERE doc_id='doc_g'"
-    ).fetchone()
+    row = db.execute("SELECT mapped_genre_id FROM documents WHERE doc_id='doc_g'").fetchone()
     assert row["mapped_genre_id"] == 7
 
 
@@ -861,9 +883,7 @@ def test_save_mapping_genre_defaults_to_null(db):
 
     _save_mapping(db, doc_id="doc_n", category_ids=[2], month_iso="1971-05")
 
-    row = db.execute(
-        "SELECT mapped_genre_id FROM documents WHERE doc_id='doc_n'"
-    ).fetchone()
+    row = db.execute("SELECT mapped_genre_id FROM documents WHERE doc_id='doc_n'").fetchone()
     assert row["mapped_genre_id"] is None
 
 
@@ -880,8 +900,7 @@ def test_refresh_coverage_groups_by_genre(db):
                 mapped_genre_id
             ) VALUES (?, ?, ?, ?, ?, ?, ?, 0.8, '2026-04-25T10:30:00Z', 4, '1972-10', ?)
             """,
-            (doc_id, "T", "X", "PRESS", "src", f"sha_{doc_id}", "2026-04-25T10:00:00Z",
-             genre_id),
+            (doc_id, "T", "X", "PRESS", "src", f"sha_{doc_id}", "2026-04-25T10:00:00Z", genre_id),
         )
 
     insert("d1", 6)
@@ -900,6 +919,6 @@ def test_refresh_coverage_groups_by_genre(db):
             "WHERE category_id=4 AND month_iso='1972-10'"
         )
     }
-    assert rows[6] == pytest.approx(0.4)   # 2/5
-    assert rows[1] == pytest.approx(0.2)   # 1/5
-    assert rows[0] == pytest.approx(0.2)   # unclassified bucket
+    assert rows[6] == pytest.approx(0.4)  # 2/5
+    assert rows[1] == pytest.approx(0.2)  # 1/5
+    assert rows[0] == pytest.approx(0.2)  # unclassified bucket

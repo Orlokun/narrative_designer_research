@@ -333,7 +333,9 @@ def _base_queries(cat_id: int, genre: Genre, month_iso: str) -> list[str]:
             queries.append(terms[1])
     event = _CRITICAL_MONTHS.get(month_iso)
     if event:
-        queries.append(f"{genre_term} {cat_name} {_REGION} {month_iso} {event.split(';')[0].strip()}")
+        queries.append(
+            f"{genre_term} {cat_name} {_REGION} {month_iso} {event.split(';')[0].strip()}"
+        )
     else:
         queries.append(f"{genre_term} {cat_name} {_REGION} {month_iso}")
     return queries or [f"{_REGION} {month_iso}"]

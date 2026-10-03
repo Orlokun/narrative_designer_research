@@ -21,15 +21,30 @@ from pipeline.cast_manager import (
     wikidata_sitelinks_url,
 )
 
-_SEARCH = json.dumps({"search": [
-    {"id": "Q170581", "label": "Salvador Allende",
-     "description": "presidente de Chile (1908-1973)"},
-    {"id": "Q9999", "label": "Otro", "description": "distinto"},
-]})
-_SITELINKS = json.dumps({"entities": {"Q170581": {"sitelinks": {
-    "enwiki": {"url": "https://en.wikipedia.org/wiki/Salvador_Allende"},
-    "eswiki": {"url": "https://es.wikipedia.org/wiki/Salvador_Allende"},
-}}}})
+_SEARCH = json.dumps(
+    {
+        "search": [
+            {
+                "id": "Q170581",
+                "label": "Salvador Allende",
+                "description": "presidente de Chile (1908-1973)",
+            },
+            {"id": "Q9999", "label": "Otro", "description": "distinto"},
+        ]
+    }
+)
+_SITELINKS = json.dumps(
+    {
+        "entities": {
+            "Q170581": {
+                "sitelinks": {
+                    "enwiki": {"url": "https://en.wikipedia.org/wiki/Salvador_Allende"},
+                    "eswiki": {"url": "https://es.wikipedia.org/wiki/Salvador_Allende"},
+                }
+            }
+        }
+    }
+)
 
 
 class TestWikidataUrls:
@@ -47,7 +62,10 @@ class TestWikidataUrls:
 class TestParseWikidataSearch:
     def test_takes_top_hit(self):
         assert parse_wikidata_search(_SEARCH) == (
-            "Q170581", "Salvador Allende", "presidente de Chile (1908-1973)")
+            "Q170581",
+            "Salvador Allende",
+            "presidente de Chile (1908-1973)",
+        )
 
     def test_empty_results(self):
         assert parse_wikidata_search('{"search": []}') is None
@@ -59,12 +77,19 @@ class TestParseWikidataSearch:
 
 class TestParseWikipediaUrl:
     def test_prefers_spanish(self):
-        assert parse_wikipedia_url(_SITELINKS, "Q170581") == \
-            "https://es.wikipedia.org/wiki/Salvador_Allende"
+        assert (
+            parse_wikipedia_url(_SITELINKS, "Q170581")
+            == "https://es.wikipedia.org/wiki/Salvador_Allende"
+        )
 
     def test_falls_back_to_english(self):
-        body = json.dumps({"entities": {"Q1": {"sitelinks": {
-            "enwiki": {"url": "https://en.wikipedia.org/wiki/X"}}}}})
+        body = json.dumps(
+            {
+                "entities": {
+                    "Q1": {"sitelinks": {"enwiki": {"url": "https://en.wikipedia.org/wiki/X"}}}
+                }
+            }
+        )
         assert parse_wikipedia_url(body, "Q1") == "https://en.wikipedia.org/wiki/X"
 
     def test_none_when_no_sitelinks(self):
@@ -101,8 +126,10 @@ class TestEnrichCharacters:
         conn.row_factory = sqlite3.Row
         ensure_cast_tables(conn)
         now = datetime.now(UTC).isoformat()
-        for cid, name in [("salvador-allende", "Salvador Allende"),
-                          ("nadie", "Nadie Que No Existe")]:
+        for cid, name in [
+            ("salvador-allende", "Salvador Allende"),
+            ("nadie", "Nadie Que No Existe"),
+        ]:
             conn.execute(
                 "INSERT INTO characters (character_id, name, aliases, first_seen_at, updated_at) "
                 "VALUES (?, ?, '[]', ?, ?)",

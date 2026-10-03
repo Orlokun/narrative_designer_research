@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rebuild Roadmap — Cybersyn Wiki</title>
+<title>Rebuild Roadmap — Research Engine Wiki</title>
 <link rel="stylesheet" href="assets/wiki.css">
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
   <nav class="top">
     <a href="index.html">Home</a>
     <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
     <a href="architecture.html">Architecture</a>
     <a href="agents.html">Agents</a>
     <a href="data-model.html">Data Model</a>
@@ -47,6 +48,32 @@
       Document Curator). More steps
       will follow as the architecture is finalised.</p>
   </div>
+
+  <h2>Generalisation — the reusable platform <span class="badge real">Done (v1)</span></h2>
+  <p>This repository is the translation of the Cybersyn engine into a tool for any historical moment
+  (<a href="platform.html">Platform</a>). Shipped: the project spec (<code>lib/project.py</code>,
+  <code>projects/cybersyn/project.yaml</code> generated from the original constants — identical behaviour),
+  project-driven Propositor / Mapper / Verificator / Cast &amp; Location managers / Admin heatmap,
+  language-parametric Wikipedia/Wikisource connectors, the Grid Proposer, the connector catalogue +
+  Source Scout, the LLM provider layer (Ollama or Gemini/Gemma via Google AI Studio) and the Knowledge
+  API for the Director.</p>
+  <p><strong>Next steps</strong></p>
+  <ol>
+    <li><strong>Genre axis per project</strong> — <code>lib/genres.py</code> still carries the 13 Cybersyn genres with
+      Spanish search terms; let the spec supply genre vocabulary (and have the Grid Proposer draft it).
+      Plausibility overrides are already disabled outside Cybersyn.</li>
+    <li><strong>Seeds into the queues</strong> — insert the spec's seed characters / locations into the
+      cast and location tables as <code>needs_research</code> so the first cycles research them.</li>
+    <li><strong>Director node</strong> — register a node in <code>runtime/director/orchestrator.py</code> that
+      builds a <code>DirectorQuery</code> from <code>WorldState</code> (month, scene themes, present NPCs, place),
+      calls <code>KnowledgeBase.context()</code> and hands <code>as_prompt()</code> to the director model.</li>
+    <li><strong>Admin: project switcher</strong> — show the active project on every page; a page that renders a
+      spec and the Scout's last report.</li>
+    <li><strong>Connector growth</strong> — Europeana, Gallica, DPLA, Trove, Deutsche Digitale Bibliothek as
+      generic archive connectors (URL builder + extractor + rate limit + catalogue entry).</li>
+    <li><strong>Live Grid-Proposer evaluation</strong> — run <code>grid-proposer propose</code> with Gemini on two or
+      three moments and tune the prompt against what a historian corrects.</li>
+  </ol>
 
   <h2>Confirmed rebuild targets</h2>
   <table>
@@ -367,6 +394,6 @@
   </div>
 </main>
 
-<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
 </body>
 </html>

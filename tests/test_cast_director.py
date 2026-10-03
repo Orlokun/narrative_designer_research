@@ -56,17 +56,23 @@ class TestNormalizeRelation:
 
     def test_directed_pair_keeps_direction(self):
         assert normalize_relation("allende", "flores", "mentor") == (
-            "allende", "flores", "mentor",
+            "allende",
+            "flores",
+            "mentor",
         )
         # reversed input is a different directed relation
         assert normalize_relation("flores", "allende", "mentor") == (
-            "flores", "allende", "mentor",
+            "flores",
+            "allende",
+            "mentor",
         )
 
     def test_inverse_kind_flips_then_keeps_direction(self):
         # "flores subordinate-of allende" → allende superior-of flores
         assert normalize_relation("flores", "allende", "subordinate") == (
-            "allende", "flores", "superior",
+            "allende",
+            "flores",
+            "superior",
         )
 
     def test_self_relation_rejected(self):
@@ -78,10 +84,18 @@ class TestNormalizeRelation:
 
 class TestParseRelations:
     def test_parses_relations(self):
-        raw = json.dumps({"relations": [
-            {"source": "Salvador Allende", "target": "Fernando Flores",
-             "kind": "colleague", "description": "worked together on Cybersyn"},
-        ]})
+        raw = json.dumps(
+            {
+                "relations": [
+                    {
+                        "source": "Salvador Allende",
+                        "target": "Fernando Flores",
+                        "kind": "colleague",
+                        "description": "worked together on Cybersyn",
+                    },
+                ]
+            }
+        )
         rels = parse_relations_response(raw)
         assert len(rels) == 1
         assert rels[0].source == "Salvador Allende"
@@ -96,11 +110,15 @@ class TestParseRelations:
         assert parse_relations_response("not json") is None
 
     def test_skips_entries_without_both_endpoints(self):
-        raw = json.dumps({"relations": [
-            {"source": "A", "kind": "ally"},
-            {"source": "Allende", "target": "Flores", "kind": "ally"},
-            {"target": "B", "kind": "ally"},
-        ]})
+        raw = json.dumps(
+            {
+                "relations": [
+                    {"source": "A", "kind": "ally"},
+                    {"source": "Allende", "target": "Flores", "kind": "ally"},
+                    {"target": "B", "kind": "ally"},
+                ]
+            }
+        )
         rels = parse_relations_response(raw)
         assert len(rels) == 1
         assert rels[0].source == "Allende"
@@ -133,8 +151,14 @@ def cast_db():
 class TestSchema:
     def test_creates_relations_table(self, cast_db):
         cols = {r[1] for r in cast_db.execute("PRAGMA table_info(character_relations)")}
-        assert {"source_character_id", "target_character_id", "kind",
-                "confidence", "mention_count", "provenance"} <= cols
+        assert {
+            "source_character_id",
+            "target_character_id",
+            "kind",
+            "confidence",
+            "mention_count",
+            "provenance",
+        } <= cols
 
     def test_idempotent(self, cast_db):
         ensure_relation_tables(cast_db)  # must not raise
@@ -152,15 +176,20 @@ class TestSchema:
 
 def _roster(conn):
     from pipeline.cast_manager import _load_character_roster
+
     return _load_character_roster(conn)
 
 
 class TestUpsertRelation:
     def test_resolves_names_and_inserts(self, cast_db):
         status = cd._upsert_relation(
-            cast_db, _roster(cast_db),
-            "Salvador Allende", "Fernando Flores", "colleague",
-            "Cybersyn collaborators", "doc1",
+            cast_db,
+            _roster(cast_db),
+            "Salvador Allende",
+            "Fernando Flores",
+            "colleague",
+            "Cybersyn collaborators",
+            "doc1",
         )
         assert status == "new"
         row = cast_db.execute("SELECT * FROM character_relations").fetchone()
@@ -190,16 +219,26 @@ class TestUpsertRelation:
 
     def test_unresolved_endpoint_is_skipped(self, cast_db):
         status = cd._upsert_relation(
-            cast_db, _roster(cast_db),
-            "Salvador Allende", "Richard Nixon", "enemy", "", "doc1",
+            cast_db,
+            _roster(cast_db),
+            "Salvador Allende",
+            "Richard Nixon",
+            "enemy",
+            "",
+            "doc1",
         )
         assert status == "unresolved"
         assert cast_db.execute("SELECT COUNT(*) FROM character_relations").fetchone()[0] == 0
 
     def test_self_relation_skipped(self, cast_db):
         status = cd._upsert_relation(
-            cast_db, _roster(cast_db),
-            "Salvador Allende", "Allende", "ally", "", "doc1",
+            cast_db,
+            _roster(cast_db),
+            "Salvador Allende",
+            "Allende",
+            "ally",
+            "",
+            "doc1",
         )
         assert status == "self"
         assert cast_db.execute("SELECT COUNT(*) FROM character_relations").fetchone()[0] == 0
@@ -236,8 +275,10 @@ def _seed_db(path):
         )
     """)
     now = datetime.now(UTC).isoformat()
-    for cid, name in [("salvador-allende", "Salvador Allende"),
-                      ("fernando-flores", "Fernando Flores")]:
+    for cid, name in [
+        ("salvador-allende", "Salvador Allende"),
+        ("fernando-flores", "Fernando Flores"),
+    ]:
         conn.execute(
             "INSERT INTO characters (character_id, name, aliases, first_seen_at, updated_at) "
             "VALUES (?, ?, '[]', ?, ?)",
@@ -269,10 +310,18 @@ class TestRunCycle:
     async def test_llm_path_persists_relations(self, tmp_path, monkeypatch):
         db = tmp_path / "archivo.sqlite"
         _seed_db(db)
-        response = json.dumps({"relations": [
-            {"source": "Salvador Allende", "target": "Fernando Flores",
-             "kind": "colleague", "description": "Cybersyn collaborators"},
-        ]})
+        response = json.dumps(
+            {
+                "relations": [
+                    {
+                        "source": "Salvador Allende",
+                        "target": "Fernando Flores",
+                        "kind": "colleague",
+                        "description": "Cybersyn collaborators",
+                    },
+                ]
+            }
+        )
         monkeypatch.setattr(cd, "LLMClient", lambda: _FakeOllama(response))
 
         result = await CastDirector(db_path=db, use_llm=True).run_cycle()
@@ -326,13 +375,19 @@ class TestPoliticalRefinement:
         assert positions == {"salvador-allende": (-0.8, -0.3)}
 
     def test_afiliacion_between_opposites_becomes_contraparte(self, cast_db):
-        self._set_pos(cast_db, "salvador-allende", -0.8, -0.3)   # izquierda / libertario
-        self._set_pos(cast_db, "augusto-pinochet", 0.7, 0.8)     # derecha / autoritario
+        self._set_pos(cast_db, "salvador-allende", -0.8, -0.3)  # izquierda / libertario
+        self._set_pos(cast_db, "augusto-pinochet", 0.7, 0.8)  # derecha / autoritario
         positions = cd._load_political_positions(cast_db)
 
         status = cd._upsert_relation(
-            cast_db, _roster(cast_db), "Salvador Allende", "Augusto Pinochet",
-            "political", "co-mentioned", "doc1", positions=positions,
+            cast_db,
+            _roster(cast_db),
+            "Salvador Allende",
+            "Augusto Pinochet",
+            "political",
+            "co-mentioned",
+            "doc1",
+            positions=positions,
         )
         assert status == "new"
         kind = cast_db.execute("SELECT kind FROM character_relations").fetchone()["kind"]
@@ -340,8 +395,14 @@ class TestPoliticalRefinement:
 
     def test_afiliacion_kept_when_positions_unknown(self, cast_db):
         status = cd._upsert_relation(
-            cast_db, _roster(cast_db), "Salvador Allende", "Augusto Pinochet",
-            "political", "", "doc1", positions={},
+            cast_db,
+            _roster(cast_db),
+            "Salvador Allende",
+            "Augusto Pinochet",
+            "political",
+            "",
+            "doc1",
+            positions={},
         )
         assert status == "new"
         kind = cast_db.execute("SELECT kind FROM character_relations").fetchone()["kind"]

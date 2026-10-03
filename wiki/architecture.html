@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Architecture — Cybersyn Wiki</title>
+<title>Architecture — Research Engine Wiki</title>
 <link rel="stylesheet" href="assets/wiki.css">
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
   <nav class="top">
     <a href="index.html">Home</a>
     <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
     <a href="architecture.html" class="here">Architecture</a>
     <a href="agents.html">Agents</a>
     <a href="data-model.html">Data Model</a>
@@ -28,6 +29,17 @@
   <h1>Architecture</h1>
   <p class="lede">How the pieces fit: a linear harvesting pipeline backed by a single
     SQLite database, with all outbound HTTP funnelled through one gatekeeper.</p>
+
+  <h2>Project-driven engine</h2>
+  <p>Nothing about the historical moment is hardcoded any more. The active
+  <a href="platform.html#spec">project spec</a> (<code>RESEARCH_PROJECT</code>, default <code>cybersyn</code>)
+  supplies the period (time axis), the themes (rows), the critical months, the source tiers, the
+  search vocabulary and every domain-specific prompt fragment; agents derive their module constants
+  from <code>project()</code> at import time. Two agents run <em>before</em> step 1 when a new moment is set
+  up — the <a href="platform.html#grid-proposer">Grid Proposer</a> (drafts the spec) and the
+  <a href="platform.html#source-scout">Source Scout</a> (probes the APIs and writes the source tiers) —
+  and the <a href="platform.html#knowledge">Knowledge API</a> is the read path from the archive to the
+  game Director. LLM calls go through <code>LLMClient()</code> (<a href="platform.html#llm">Ollama or Gemini</a>).</p>
 
   <h2 id="canonical-pipeline">Canonical pipeline</h2>
   <p>The canonical step-by-step that defines the project. Steps 1–9 are implemented (with
@@ -171,6 +183,6 @@ All HTTP ──▶ Gatekeeper (:8001) ──▶ external sources
   </div>
 </main>
 
-<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
 </body>
 </html>

@@ -69,9 +69,7 @@ def test_clean_rejected_deletes_scored_not_verified(db):
     assert deleted == 1
 
     # Verify it's gone
-    remaining = db.execute(
-        "SELECT COUNT(*) FROM documents WHERE doc_id = 'doc001'"
-    ).fetchone()[0]
+    remaining = db.execute("SELECT COUNT(*) FROM documents WHERE doc_id = 'doc001'").fetchone()[0]
     assert remaining == 0
 
 
@@ -100,9 +98,7 @@ def test_clean_rejected_keeps_unscored(db):
     assert deleted == 0
 
     # Verify it still exists
-    remaining = db.execute(
-        "SELECT COUNT(*) FROM documents WHERE doc_id = 'doc002'"
-    ).fetchone()[0]
+    remaining = db.execute("SELECT COUNT(*) FROM documents WHERE doc_id = 'doc002'").fetchone()[0]
     assert remaining == 1
 
 
@@ -134,9 +130,7 @@ def test_clean_rejected_keeps_verified(db):
     assert deleted == 0
 
     # Verify it still exists
-    remaining = db.execute(
-        "SELECT COUNT(*) FROM documents WHERE doc_id = 'doc003'"
-    ).fetchone()[0]
+    remaining = db.execute("SELECT COUNT(*) FROM documents WHERE doc_id = 'doc003'").fetchone()[0]
     assert remaining == 1
 
 

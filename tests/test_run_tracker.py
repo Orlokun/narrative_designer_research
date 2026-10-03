@@ -51,9 +51,8 @@ class TestEnsurePipelineTables:
         conn = sqlite3.connect(":memory:")
         ensure_pipeline_tables(conn)
         tables = {
-            r[0] for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            r[0]
+            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
         assert {"pipeline_runs", "pipeline_run_stages"} <= tables
 
@@ -66,9 +65,7 @@ class TestEnsurePipelineTables:
 class TestStartFinishRun:
     def test_start_inserts_running_row(self, db):
         start_run("run-1", trigger="pipeline")
-        row = _conn(db).execute(
-            "SELECT * FROM pipeline_runs WHERE run_id='run-1'"
-        ).fetchone()
+        row = _conn(db).execute("SELECT * FROM pipeline_runs WHERE run_id='run-1'").fetchone()
         assert row["status"] == "running"
         assert row["trigger"] == "pipeline"
         assert row["started_at"]
@@ -77,17 +74,13 @@ class TestStartFinishRun:
     def test_finish_sets_finished_and_status(self, db):
         start_run("run-1", trigger="pipeline")
         finish_run("run-1", status="done")
-        row = _conn(db).execute(
-            "SELECT * FROM pipeline_runs WHERE run_id='run-1'"
-        ).fetchone()
+        row = _conn(db).execute("SELECT * FROM pipeline_runs WHERE run_id='run-1'").fetchone()
         assert row["status"] == "done"
         assert row["finished_at"]
 
     def test_finish_without_start_creates_row(self, db):
         finish_run("orphan", status="failed")
-        row = _conn(db).execute(
-            "SELECT * FROM pipeline_runs WHERE run_id='orphan'"
-        ).fetchone()
+        row = _conn(db).execute("SELECT * FROM pipeline_runs WHERE run_id='orphan'").fetchone()
         assert row is not None
         assert row["status"] == "failed"
 
@@ -97,9 +90,7 @@ class TestRecordStage:
         t0 = datetime(2026, 5, 28, 12, 0, 0, tzinfo=UTC)
         t1 = t0 + timedelta(seconds=4, milliseconds=500)
         record_stage("run-1", "archivero", t0, t1, {"documents_new": 7})
-        row = _conn(db).execute(
-            "SELECT * FROM pipeline_run_stages WHERE run_id='run-1'"
-        ).fetchone()
+        row = _conn(db).execute("SELECT * FROM pipeline_run_stages WHERE run_id='run-1'").fetchone()
         assert row["stage"] == "archivero"
         assert row["duration_s"] == pytest.approx(4.5)
         assert json.loads(row["counts"]) == {"documents_new": 7}
@@ -108,15 +99,19 @@ class TestRecordStage:
         t0 = datetime.now(UTC)
         record_stage("run-1", "propositor", t0, t0, {})
         record_stage("run-1", "archivero", t0, t0, {"documents_new": 1})
-        n = _conn(db).execute(
-            "SELECT COUNT(*) FROM pipeline_run_stages WHERE run_id='run-1'"
-        ).fetchone()[0]
+        n = (
+            _conn(db)
+            .execute("SELECT COUNT(*) FROM pipeline_run_stages WHERE run_id='run-1'")
+            .fetchone()[0]
+        )
         assert n == 2
 
     def test_empty_counts_default(self, db):
         t0 = datetime.now(UTC)
         record_stage("run-1", "mapper", t0, t0, None)
-        row = _conn(db).execute(
-            "SELECT counts FROM pipeline_run_stages WHERE run_id='run-1'"
-        ).fetchone()
+        row = (
+            _conn(db)
+            .execute("SELECT counts FROM pipeline_run_stages WHERE run_id='run-1'")
+            .fetchone()
+        )
         assert json.loads(row["counts"]) == {}

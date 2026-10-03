@@ -3,15 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Commands — Cybersyn Wiki</title>
+<title>Commands — Research Engine Wiki</title>
 <link rel="stylesheet" href="assets/wiki.css">
 </head>
 <body>
 <header class="bar">
-  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
   <nav class="top">
     <a href="index.html">Home</a>
     <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
     <a href="architecture.html">Architecture</a>
     <a href="agents.html">Agents</a>
     <a href="data-model.html">Data Model</a>
@@ -28,6 +29,18 @@
   <h1>Commands</h1>
   <p class="lede">CLI entry points and every Makefile target. All pipeline agents are CLI
     tools; only Gatekeeper and Admin are long-running.</p>
+
+  <h2 id="platform">Platform — new projects</h2>
+  <table>
+    <tr><th>Command / target</th><th>Does</th></tr>
+    <tr><td><code>uv run grid-proposer propose --moment … --start YYYY-MM --end YYYY-MM --region … [--language xx] [--slug …] [--themes 12] [--no-llm] [--out PATH] [--force]</code></td><td>Draft <code>projects/&lt;slug&gt;/project.yaml</code> for a historical moment (<a href="platform.html#grid-proposer">Grid Proposer</a>).</td></tr>
+    <tr><td><code>uv run grid-proposer show &lt;slug|path&gt;</code> · <code>make project-show P=&lt;slug&gt;</code></td><td>Print a project summary.</td></tr>
+    <tr><td><code>uv run source-scout run --project &lt;slug&gt; [--probes 2] [--apply]</code> · <code>make scout P=&lt;slug&gt;</code> / <code>make scout-apply P=&lt;slug&gt;</code></td><td>Probe the applicable connectors through the Gatekeeper and recommend / write <code>source_tiers</code> (<a href="platform.html#source-scout">Source Scout</a>).</td></tr>
+    <tr><td><code>uv run source-scout catalogue [--project …]</code></td><td>List every connector the engine knows, and which apply to a project.</td></tr>
+    <tr><td><code>make new-project MOMENT="…" START=YYYY-MM END=YYYY-MM REGION=… LANG=xx SLUG=…</code></td><td>Propose a spec in one go.</td></tr>
+    <tr><td><code>RESEARCH_PROJECT=&lt;slug|path&gt;</code> (env / <code>.env</code>)</td><td>Select the active project for every agent and the admin. Default <code>cybersyn</code>.</td></tr>
+    <tr><td><code>LLM_PROVIDER=ollama|gemini</code>, <code>GEMINI_API_KEY</code>, <code>GEMINI_MODEL</code>, <code>GEMINI_RPM</code></td><td>Choose the LLM backend (<a href="platform.html#llm">LLM providers</a>).</td></tr>
+  </table>
 
   <h2>Setup &amp; quality</h2>
   <pre>uv sync                  # install all deps (including dev group)
@@ -136,6 +149,6 @@ uv run propositor run --focus cells                         # gap missions only 
   </div>
 </main>
 
-<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
 </body>
 </html>

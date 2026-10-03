@@ -21,14 +21,17 @@ from pydantic import BaseModel, Field
 # Config (parsed from rate_limits.yaml)
 # ---------------------------------------------------------------------------
 
+
 class DomainRateConfig(BaseModel):
     """Rate limit config for one domain."""
+
     rps: float = Field(default=0.2, gt=0.0, description="Max requests per second")
     rpm: int = Field(default=10, gt=0, description="Informational; rps is enforced")
 
 
 class GatekeeperYAMLConfig(BaseModel):
     """Top-level structure of rate_limits.yaml."""
+
     domains: dict[str, DomainRateConfig] = Field(default_factory=dict)
     default: DomainRateConfig = Field(default_factory=DomainRateConfig)
     circuit_breaker_threshold: int = Field(default=3, gt=0)
@@ -46,7 +49,7 @@ _RATE_LIMIT_MAX_BACKOFF_S: float = 1800.0  # 30 min
 
 @dataclass
 class DomainState:
-    min_interval: float          # seconds between requests = 1 / rps
+    min_interval: float  # seconds between requests = 1 / rps
     last_request_time: float = 0.0
     consecutive_failures: int = 0
     consecutive_rate_limits: int = 0
@@ -106,9 +109,7 @@ class DomainState:
         if self.last_rate_limited_at > 0.0:
             decay_steps = int((now - self.last_rate_limited_at) // _RATE_LIMIT_BASE_BACKOFF_S)
             if decay_steps > 0:
-                self.consecutive_rate_limits = max(
-                    0, self.consecutive_rate_limits - decay_steps
-                )
+                self.consecutive_rate_limits = max(0, self.consecutive_rate_limits - decay_steps)
         self.consecutive_rate_limits += 1
         escalated = min(
             _RATE_LIMIT_BASE_BACKOFF_S * (2 ** (self.consecutive_rate_limits - 1)),
@@ -141,6 +142,7 @@ class DomainState:
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
+
 
 class DomainRegistry:
     """

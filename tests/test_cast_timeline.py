@@ -18,9 +18,7 @@ class TestYearFraction:
         assert _year_fraction("1970-10") == pytest.approx(1970 + 9 / 12)
 
     def test_year_month_day(self):
-        assert _year_fraction("1973-09-11") == pytest.approx(
-            1973 + 8 / 12 + (11 - 1) / 31 / 12
-        )
+        assert _year_fraction("1973-09-11") == pytest.approx(1973 + 8 / 12 + (11 - 1) / 31 / 12)
 
     def test_year_range_takes_first_year(self):
         # The corpus produces date_iso like "1970-1973"; treat as the first year.

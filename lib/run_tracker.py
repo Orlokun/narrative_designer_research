@@ -36,6 +36,7 @@ ENV_VAR: str = "CYBERSYN_RUN_ID"
 
 # ── Env ──────────────────────────────────────────────────────────────────────
 
+
 def current_run_id() -> str | None:
     """Return the active run id from the environment, or None if unset/blank."""
     rid = os.environ.get(ENV_VAR, "").strip()
@@ -43,6 +44,7 @@ def current_run_id() -> str | None:
 
 
 # ── Schema ───────────────────────────────────────────────────────────────────
+
 
 def ensure_pipeline_tables(conn: sqlite3.Connection) -> None:
     """Create the pipeline_runs and pipeline_run_stages tables if absent (idempotent)."""
@@ -66,9 +68,7 @@ def ensure_pipeline_tables(conn: sqlite3.Connection) -> None:
             counts      TEXT NOT NULL DEFAULT '{}'
         )
     """)
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_run_stages_run_id ON pipeline_run_stages(run_id)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_run_stages_run_id ON pipeline_run_stages(run_id)")
     conn.commit()
 
 
@@ -80,6 +80,7 @@ def _connect() -> sqlite3.Connection:
 
 
 # ── Run lifecycle ──────────────────────────────────────────────────────────────
+
 
 def start_run(run_id: str, trigger: str = "manual") -> None:
     """Record the start of a pipeline run (upsert; resets status to 'running')."""
@@ -165,6 +166,7 @@ def record_stage(
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     import argparse

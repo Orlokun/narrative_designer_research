@@ -232,9 +232,7 @@ class TestRunCycle:
         path = tmp_path / "archivo.sqlite"
         _seed_documents_db(path)
         manager = LocationManager(db_path=path, use_llm=True)
-        with patch(
-            "pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)
-        ):
+        with patch("pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)):
             result = asyncio.run(manager.run_cycle(batch_size=10))
 
         assert result.processed == 1
@@ -263,9 +261,7 @@ class TestRunCycle:
         path = tmp_path / "archivo.sqlite"
         _seed_documents_db(path)
         manager = LocationManager(db_path=path, use_llm=True)
-        with patch(
-            "pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)
-        ):
+        with patch("pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)):
             asyncio.run(manager.run_cycle(batch_size=10))
             second = asyncio.run(manager.run_cycle(batch_size=10))
         assert second.processed == 0
@@ -288,9 +284,7 @@ class TestRunCycle:
         conn.close()
 
         manager = LocationManager(db_path=path, use_llm=True)
-        with patch(
-            "pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)
-        ):
+        with patch("pipeline.location_manager.LLMClient", return_value=_mock_ollama(_LLM_RESPONSE)):
             asyncio.run(manager.run_cycle(batch_size=10))
 
         conn = sqlite3.connect(str(path))

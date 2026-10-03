@@ -25,6 +25,16 @@ from dataclasses import dataclass, field
 GENRE_UNCLASSIFIED: int = 0
 
 
+def overrides_active() -> bool:
+    """True when the active project is the one the plausibility overrides were tuned for."""
+    from lib.project import (
+        DEFAULT_PROJECT_SLUG,
+        project,
+    )  # local: avoid import cycles at module load
+
+    return project().slug == DEFAULT_PROJECT_SLUG
+
+
 @dataclass(frozen=True)
 class Genre:
     """One column of the matrix's genre axis."""
@@ -39,7 +49,14 @@ class Genre:
     plausibility_overrides: dict[int, float] = field(default_factory=dict)
 
     def plausibility(self, category_id: int) -> float:
-        """Prior (0-1) that this genre exists for the given theme in 1969-73 archives."""
+        """Prior (0-1) that this genre exists for the given theme in the period's archives.
+
+        The per-theme overrides below were calibrated against the Cybersyn theme ids;
+        under any other project spec they would land on unrelated themes, so only
+        the default prior applies there (see ``overrides_active``).
+        """
+        if not overrides_active():
+            return self.default_plausibility
         return self.plausibility_overrides.get(category_id, self.default_plausibility)
 
 
@@ -61,7 +78,17 @@ GENRES: list[Genre] = [
         search_terms=["discurso", "alocución presidencial"],
         sources=["marxists", "wikisource_es", "archive.org"],
         default_plausibility=0.6,
-        plausibility_overrides={1: 1.0, 3: 0.9, 4: 0.9, 6: 0.7, 9: 0.7, 13: 0.7, 16: 0.7, 14: 0.5, 15: 0.3},
+        plausibility_overrides={
+            1: 1.0,
+            3: 0.9,
+            4: 0.9,
+            6: 0.7,
+            9: 0.7,
+            13: 0.7,
+            16: 0.7,
+            14: 0.5,
+            15: 0.3,
+        },
     ),
     Genre(
         id=2,
@@ -87,8 +114,21 @@ GENRES: list[Genre] = [
         search_terms=["cable diplomático", "embassy Santiago telegram"],
         sources=["foia_chile", "frus", "archive.org"],
         default_plausibility=0.3,
-        plausibility_overrides={6: 1.0, 8: 0.9, 1: 0.8, 13: 0.8, 3: 0.7, 7: 0.7, 4: 0.6, 16: 0.6,
-                                2: 0.2, 9: 0.2, 12: 0.2, 14: 0.15, 15: 0.1},
+        plausibility_overrides={
+            6: 1.0,
+            8: 0.9,
+            1: 0.8,
+            13: 0.8,
+            3: 0.7,
+            7: 0.7,
+            4: 0.6,
+            16: 0.6,
+            2: 0.2,
+            9: 0.2,
+            12: 0.2,
+            14: 0.15,
+            15: 0.1,
+        },
     ),
     Genre(
         id=4,
@@ -101,8 +141,19 @@ GENRES: list[Genre] = [
         search_terms=["decreto ley", "acta oficial gobierno"],
         sources=["wikisource_es", "archive.org"],
         default_plausibility=0.7,
-        plausibility_overrides={1: 1.0, 3: 0.9, 4: 0.9, 2: 0.8, 9: 0.8, 11: 0.8, 16: 0.8,
-                                12: 0.7, 13: 0.7, 14: 0.5, 15: 0.4},
+        plausibility_overrides={
+            1: 1.0,
+            3: 0.9,
+            4: 0.9,
+            2: 0.8,
+            9: 0.8,
+            11: 0.8,
+            16: 0.8,
+            12: 0.7,
+            13: 0.7,
+            14: 0.5,
+            15: 0.4,
+        },
     ),
     Genre(
         id=5,
@@ -155,8 +206,20 @@ GENRES: list[Genre] = [
         search_terms=["informe técnico", "memoria institucional informe"],
         sources=["archive.org", "openalex", "semantic_scholar"],
         default_plausibility=0.5,
-        plausibility_overrides={10: 1.0, 3: 0.9, 4: 0.9, 16: 0.9, 11: 0.8, 12: 0.8, 2: 0.7,
-                                9: 0.6, 13: 0.5, 6: 0.4, 14: 0.2, 15: 0.15},
+        plausibility_overrides={
+            10: 1.0,
+            3: 0.9,
+            4: 0.9,
+            16: 0.9,
+            11: 0.8,
+            12: 0.8,
+            2: 0.7,
+            9: 0.6,
+            13: 0.5,
+            6: 0.4,
+            14: 0.2,
+            15: 0.15,
+        },
     ),
     Genre(
         id=9,
@@ -221,8 +284,18 @@ GENRES: list[Genre] = [
         search_terms=["manifiesto panfleto", "programa político propaganda"],
         sources=["marxists", "archive.org", "wikisource_es"],
         default_plausibility=0.4,
-        plausibility_overrides={1: 1.0, 4: 0.8, 3: 0.7, 6: 0.7, 5: 0.6, 13: 0.6, 9: 0.5,
-                                14: 0.5, 2: 0.4, 15: 0.2},
+        plausibility_overrides={
+            1: 1.0,
+            4: 0.8,
+            3: 0.7,
+            6: 0.7,
+            5: 0.6,
+            13: 0.6,
+            9: 0.5,
+            14: 0.5,
+            2: 0.4,
+            15: 0.2,
+        },
     ),
 ]
 

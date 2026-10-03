@@ -55,6 +55,7 @@ from pypdf import PdfReader
 from lib.config import settings
 from lib.coverage import ensure_coverage_table, upsert_coverage_score
 from lib.logging_setup import get_logger
+from lib.project import project
 from lib.run_tracker import current_run_id, record_stage
 from lib.schemas import MissionStatus
 
@@ -72,7 +73,7 @@ _STALE_RUNNING_TIMEOUT: timedelta = timedelta(minutes=30)
 _SOURCE_URLS: dict[str, str] = {
     # ── HTML sources (trafilatura extraction) ──────────────────────────────
     "bn_digital": "https://www.bibliotecanacionaldigital.gob.cl/?s={q}",
-    "web_serp":   "https://html.duckduckgo.com/html/?q={q}+Chile+historia",
+    "web_serp":   "https://html.duckduckgo.com/html/?q={q}+{region}+historia",
 
     # ── JSON API sources (structured extractors) ───────────────────────────
     # archive.org advancedsearch: returns JSON with title + description
@@ -219,11 +220,11 @@ def _wikisource_search_titles(body: str) -> list[str]:
     ]
 
 
-def _wikisource_parse_url(title: str) -> str:
+def _wikisource_parse_url(title: str, lang: str = "es") -> str:
     """Build the action=parse URL that returns fully rendered HTML for a title (step 2)."""
     encoded = urllib.parse.quote(title.replace(" ", "_"), safe="")
     return (
-        f"https://es.wikisource.org/w/api.php"
+        f"https://{lang}.wikisource.org/w/api.php"
         f"?action=parse&page={encoded}&prop=text&format=json"
     )
 
@@ -360,9 +361,10 @@ def _extract(body: str, source: str) -> list[tuple[str, str]]:
     Return a list of (title, text) pairs from a Gatekeeper response body.
     JSON API sources return multiple results; HTML sources return at most one.
     """
-    if source in _JSON_SOURCES:
+    if source in _JSON_SOURCES or _is_wikipedia(source):
         try:
-            return _JSON_EXTRACTORS[source](body)
+            extractor = _JSON_EXTRACTORS.get(source, _wikipedia_extract)
+            return extractor(body)
         except Exception as exc:
             log.debug("archivero.json_extract_failed", source=source, error=str(exc)[:80])
             return []
@@ -462,11 +464,49 @@ def _foia_document_text(meta: dict, ocr_text: str) -> tuple[str, str]:
     return title, f"{header}\n\n{ocr_text}".strip()
 
 
+# Language-parametric MediaWiki connectors: ``wikipedia_<lang>`` / ``wikisource_<lang>``.
+# ``wikipedia_es`` and ``wikisource_es`` keep their explicit entries above; any other
+# language code resolves through these templates so a project in German or English
+# gets its own Wikipedia / Wikisource without new code.
+_WIKIPEDIA_URL_TEMPLATE: str = (
+    "https://{lang}.wikipedia.org/w/api.php"
+    "?action=query&generator=search&gsrsearch={q}&gsrlimit=5"
+    "&prop=extracts&explaintext=1&format=json"
+)
+_WIKISOURCE_URL_TEMPLATE: str = (
+    "https://{lang}.wikisource.org/w/api.php"
+    "?action=query&list=search&srsearch={q}&format=json&srlimit=5"
+)
+_LANG_CONNECTOR_RE = re.compile(r"^(wikipedia|wikisource)_([a-z]{2,3})$")
+
+
+def connector_language(source: str) -> str | None:
+    """Return the language code of a ``wikipedia_xx`` / ``wikisource_xx`` connector, else None."""
+    match = _LANG_CONNECTOR_RE.match(source)
+    return match.group(2) if match else None
+
+
+def _is_wikipedia(source: str) -> bool:
+    return source.startswith("wikipedia_") and connector_language(source) is not None
+
+
+def _is_wikisource(source: str) -> bool:
+    return source.startswith("wikisource_") and connector_language(source) is not None
+
+
 def _build_url(source: str, query: str) -> str | None:
     template = _SOURCE_URLS.get(source)
     if not template:
-        return None
-    return template.format(q=urllib.parse.quote_plus(query))
+        lang = connector_language(source)
+        if lang and source.startswith("wikipedia_"):
+            template = _WIKIPEDIA_URL_TEMPLATE.replace("{lang}", lang)
+        elif lang and source.startswith("wikisource_"):
+            template = _WIKISOURCE_URL_TEMPLATE.replace("{lang}", lang)
+        else:
+            return None
+    return template.format(
+        q=urllib.parse.quote_plus(query), region=urllib.parse.quote_plus(project().region)
+    )
 
 
 # ── SQLite helpers ─────────────────────────────────────────────────────────────
@@ -539,7 +579,7 @@ def _insert_document(
                 doc_id,
                 title or url,
                 text,
-                _SOURCE_KINDS.get(source, "other"),
+                _SOURCE_KINDS.get(source, "reference" if _is_wikipedia(source) else "archive" if _is_wikisource(source) else "other"),
                 f"archivero/{source}",
                 prov,
                 sha,
@@ -782,9 +822,9 @@ class Archivero:
 
                     for source in sources:
                         # ── WikiSource: 2-step (search titles → parse rendered HTML) ──
-                        if source == "wikisource_es":
+                        if _is_wikisource(source):
                             for query in queries:
-                                search_url = _build_url("wikisource_es", query)
+                                search_url = _build_url(source, query)
                                 if search_url is None:
                                     continue
                                 search_body = await self._gatekeeper_fetch(
@@ -796,7 +836,7 @@ class Archivero:
                                 extractions_attempted += 1
                                 titles = _wikisource_search_titles(search_body)
                                 for title in titles:
-                                    parse_url  = _wikisource_parse_url(title)
+                                    parse_url  = _wikisource_parse_url(title, connector_language(source) or "es")
                                     parse_body = await self._gatekeeper_fetch(
                                         client, parse_url, mission_id
                                     )
@@ -810,7 +850,7 @@ class Archivero:
                                         conn,
                                         title=ptitle,
                                         text=ptext,
-                                        source="wikisource_es",
+                                        source=source,
                                         mission_id=mission_id,
                                         url=parse_url,
                                         seed_character_id=seed_char, seed_location_id=seed_loc,
@@ -822,7 +862,7 @@ class Archivero:
                                         log.info(
                                             "archivero.doc_saved",
                                             title=ptitle[:60],
-                                            source="wikisource_es",
+                                            source=source,
                                         )
                                     else:
                                         result.documents_duplicate += 1
