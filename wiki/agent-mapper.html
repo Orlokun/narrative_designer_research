@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapper (Ag-3) — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Mapper</div>
+  <h1>Mapper <span class="id">Ag-3</span> <span class="badge real">Real</span></h1>
+  <p class="lede">Assigns each verified document to a precise cell of the
+    <a href="coverage-matrix.html">16×13×48 matrix</a> — theme, <strong>genre</strong> and
+    month — using a Gemma LLM, finer-grained than the Archivero's mission-level
+    counting.</p>
+  <p><strong>Entry point:</strong> <code>pipeline/mapper/__init__.py</code> →
+    <code>main()</code> · <strong>CLI:</strong> <code>mapper run</code> / <code>status</code></p>
+
+  <h2>Multi-category classification</h2>
+  <p>The LLM returns <strong>1–3 ranked categories</strong> (primary first) plus a month
+    and confidence. <code>parse_llm_response()</code> validates the JSON (accepts both the
+    new <code>category_ids</code> array and the legacy single <code>category_id</code>),
+    dedupes, and enforces 1–3 distinct ids in 1–16. The primary id is stored in
+    <code>mapped_category_id</code> (used by the coverage matrix); the full ranked list in
+    <code>mapped_categories</code> (JSON).</p>
+
+  <h2>Genre classification</h2>
+  <p>The same LLM call also returns one <code>genre_id</code> (1–13, registry in
+    <code>lib/genres.py</code>) — the document's <em>form</em>, not its topic (a news
+    article about a speech is Prensa informativa, not Discurso).
+    <code>parse_genre_response()</code> validates it; when missing or invalid the
+    deterministic fallback <code>genre_from_source()</code> guesses from <strong>title
+    keywords first</strong> ("decreto" → Documento oficial, "telegram" → Cable), then a
+    <strong>connector prior</strong> (openalex/crossref/semantic_scholar → Académico,
+    frus → Cable, chronicling_america → Prensa informativa, marxists → Discurso). If
+    neither applies, <code>mapped_genre_id</code> stays NULL and the document counts under
+    genre 0 (unclassified) in the matrix.</p>
+
+  <h2>Reading &amp; date-extraction rules (in the prompt)</h2>
+  <ul>
+    <li><strong>What it IS, not what it MENTIONS:</strong> a speech on coup day defending
+      democracy is primarily Política Nacional (1), not Política Militar (13).</li>
+    <li><strong>Writing date, not event date:</strong> a memo written in March about action
+      planned for June maps to month 03. For a span, take the end month. Undatable →
+      <code>1971-06</code> fallback.</li>
+  </ul>
+
+  <h2>Out-of-scope tagging</h2>
+  <p>If the document is outside Oct 1969–Sep 1973 or the LLM signals irrelevance
+    (confidence 0.0), it is tagged <code>doc_tag='context'</code> and stamped (not retried)
+    rather than treated as a parse failure.</p>
+
+  <h2>Run modes</h2>
+  <table>
+    <tr><th>Mode</th><th>Behaviour</th></tr>
+    <tr><td>default</td><td>One batch of unmapped verified docs.</td></tr>
+    <tr><td><code>--all</code></td><td>All verified docs (mapped + unmapped), self-terminating loop via a session timestamp.</td></tr>
+    <tr><td><code>--remap</code></td><td>Re-classify already-mapped docs only (mutually exclusive with <code>--all</code>).</td></tr>
+    <tr><td><code>--no-llm</code></td><td>Fallback: category/month from the parent mission, genre from <code>genre_from_source()</code> (no Ollama).</td></tr>
+  </table>
+  <p>After each batch, <code>_refresh_coverage()</code> recomputes the shared 3D
+    <code>coverage</code> table (<code>lib/coverage.py</code>) from per-(theme, genre,
+    month) document counts; NULL genres aggregate under genre 0. A doc the LLM keeps
+    failing is stamped (<code>_stamp_skipped</code>) so loops terminate.</p>
+
+  <h2>Admin page</h2>
+  <p>The Mapper has its own dashboard page at <code>/mapper</code> (endpoint
+    <code>/api/agents/mapper</code>): mapped / pending / context counts, the share of
+    mapped docs with a genre, genre and category distribution bars, and the most recent
+    mappings. See <a href="admin.html">Admin</a>.</p>
+
+  <h2>Common invocations</h2>
+  <pre>make mapper            # run --batch 50
+make mapper-all        # run --all --batch 100
+make remap-all         # run --remap --batch 100
+uv run mapper status   # mapped / context / pending counts</pre>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-verificator.html">Verificator</a>
+    <a href="coverage-matrix.html">Coverage Matrix</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="admin.html">Admin Dashboard</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

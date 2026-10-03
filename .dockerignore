@@ -1,0 +1,39 @@
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Python artifacts
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Generated data (mounted as volume at runtime)
+data/archivo/
+data/chroma/
+data/datasets/
+data/logs/
+data/checkpoints/
+data/gatekeeper_cache/
+data/missions.jsonl
+data/characters.jsonl
+data/places.geojson
+data/fetch_log.jsonl
+data/heatmap_*.svg
+
+# Secrets
+.env
+
+# Dev tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Docs / non-runtime files
+docs/
+Makefile

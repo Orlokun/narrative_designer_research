@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location Manager — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Location Manager</div>
+  <h1>Location Manager <span class="id">Ag-4</span> <span class="badge real">Real</span></h1>
+  <p class="lede">The spatial twin of the <a href="agent-cast-manager.html">Cast Manager</a>:
+    reads verified documents and catalogues the <strong>places where events happen</strong> —
+    a flour factory in Temuco, a minister's house, La Moneda — with descriptions,
+    appreciations, events and hard data per location, and feeds places back into the
+    <a href="agent-propositor.html">Propositor</a> as location research missions.</p>
+  <p><strong>Entry point:</strong> <code>pipeline/location_manager/__init__.py</code> →
+    <code>main()</code> · <strong>CLI:</strong> <code>location-manager run / enrich /
+    analyze / score / status</code></p>
+
+  <h2>What it does</h2>
+  <ul>
+    <li><strong>Extraction</strong> (<code>run</code>): mines verified+mapped documents
+      (chunked like the Cast Manager, so long memos lose nothing) for named places —
+      kind ∈ <code>building / factory / residence / city / region / street / office /
+      other</code> — and per-place facts: <code>description</code> (physical/objective),
+      <code>appreciation</code> (a subjective opinion, with <code>reported_by</code> when
+      stated), <code>event</code> (something that happened there) and <code>data</code>
+      (address, capacity, output). Each processed document is stamped
+      <code>locations_extracted_at</code> (idempotent, self-terminating).</li>
+    <li><strong>Coreference</strong>: exact normalised match plus multi-token
+      subsequence ("La Moneda" ⊂ "Palacio de La Moneda"), but single-token names match
+      only exactly — "Temuco" the city never collapses into "Fábrica de harina de
+      Temuco". Ambiguity never merges.</li>
+    <li><strong>Character link</strong>: a place tied to a person ("casa de Salvador
+      Allende") resolves the name against the cast roster and stores
+      <code>locations.character_id</code>.</li>
+    <li><strong>External grounding</strong> (<code>enrich</code> + <code>analyze</code>):
+      same two-step as characters. <code>enrich</code> links each place to its Wikidata
+      QID + Wikipedia article (Gatekeeper, stamped <code>wikidata_checked_at</code>).
+      <code>analyze</code> mines the links — Wikidata claims give <strong>GPS
+      coordinates</strong> (P625 → <code>latitude</code>/<code>longitude</code>),
+      inception date (P571), architect (P84) and administrative territory (P131) as
+      <code>data</code> facts; the Wikipedia article (Gemma) yields a one-paragraph
+      <code>description</code> plus architectural data and trivia. Stamps
+      <code>wikidata_analyzed_at</code> / <code>wikipedia_analyzed_at</code>; failures
+      leave no stamp and retry next run.</li>
+    <li><strong>Image gallery</strong>: <code>analyze</code> also harvests images into
+      <code>location_images</code> — the Wikidata <strong>P18</strong> images (up to 6,
+      served as Commons <code>Special:FilePath</code> thumbnails) and the Wikipedia
+      article's <strong>lead image</strong> (the <code>pageimages</code> prop rides along
+      the same extract fetch — no extra request). Deduped by normalised filename, so the
+      P18 image and the article's copy of it store once; each row keeps the Commons
+      File: page for licence/attribution. Shown as the <strong>Galería</strong> on the
+      admin detail (hot-linked from Commons — needs connectivity to render).</li>
+    <li><strong>Research loop</strong>: thin locations are flagged
+      <code>needs_research</code>; the Propositor mints <code>kind='location'</code>
+      missions with kind-flavoured queries (a building searches
+      <em>arquitectura planos historia</em>, a factory <em>industria producción</em> …).
+      Harvested documents carry <code>seed_location_id</code> and are
+      <strong>force-attributed</strong> to their seed on the next extraction pass —
+      the same closed loop as characters, bounded by <code>should_research</code>
+      (&lt; 0.85, max 5 attempts, 3-day cooldown).</li>
+  </ul>
+
+  <h2>Completeness (strict, location flavour)</h2>
+  <p><code>compute_location_completeness()</code>: documentary base 0.25 (mentions/4) +
+    facts 0.30 (facts/6) + external linking 0.30 (Wikidata 0.15 + Wikipedia 0.15;
+    linked-only 0.07 each) + <strong>coordinates 0.15</strong> (the GPS datum the game
+    needs). Hard gate: neither source analyzed → ≤ 0.60. Complete = ≥ 0.85. Breakdown
+    persisted in <code>completeness_detail</code>; bulk re-score via
+    <code>location-manager score</code>.</p>
+
+  <h2>Place in the flow</h2>
+  <p>Runs after the <a href="agent-mapper.html">Mapper</a>, alongside the Cast Manager —
+    both mine the same verified+mapped documents with independent stamps. Under
+    <code>make pipeline</code> the chain runs
+    <code>run → enrich (50) → analyze (10)</code> and records
+    <code>location_manager</code> / <code>location_analyze</code> stages against the
+    run id.</p>
+
+  <h2>CLI</h2>
+  <pre><code>uv run location-manager run [--batch 50] [--all]
+uv run location-manager enrich [--limit 100]    # link Wikidata/Wikipedia (Gatekeeper)
+uv run location-manager analyze [--limit 30] [--no-llm]  # GPS, architect, article
+uv run location-manager score                   # bulk re-score
+uv run location-manager status</code></pre>
+
+  <div class="callout pending">
+    <span class="label">⚠ Still to come (separate items)</span>
+    <ul>
+      <li><code>data/locations.geojson</code> export for the game (the Chronicler
+        places stub's original goal).</li>
+      <li>Nominatim geocoding fallback for places without a Wikidata entity.</li>
+    </ul>
+    <p><strong>Done:</strong> the admin <strong>Locations page</strong> at
+      <code>/locations</code> — searchable list, self-contained SVG coordinate map
+      (dots by kind, click-to-select), and detail with facts, linked character and
+      documents (<a href="admin.html">Admin</a>).</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-cast-manager.html">Cast Manager</a>
+    <a href="agent-propositor.html">Propositor</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="commands.html">Commands</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Document Curator — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Document Curator</div>
+  <h1>Document Curator <span class="badge real">Real</span></h1>
+  <p class="lede">Step 9 of the <a href="architecture.html#canonical-pipeline">canonical
+    pipeline</a> (Ag-9). The <a href="agent-mapper.html">Mapper</a> answers <em>what a
+    document is about</em>; the Curator answers <em>what it is especially good for</em>,
+    tagging each verified, mapped document with <strong>utility flags</strong> so
+    downstream views can pull a curated set.</p>
+
+  <h2>What it does</h2>
+  <p>For each verified + mapped document the Curator asks Gemma which
+    <strong>utility flags</strong> apply, from a fixed vocabulary
+    (<code>lib/doc_flags.py</code>) of two kinds:</p>
+  <ul>
+    <li><strong>good-for</strong> — the document is a strong input for a particular lens /
+      future visualiser: <code>military-logic</code>, <code>economic-planning</code>,
+      <code>diplomacy</code>, <code>popular-life</code>, <code>ideology-rhetoric</code>,
+      <code>science-technology</code>.</li>
+    <li><strong>quality</strong> — a judgement about the source itself:
+      <code>high-value</code>, <code>eyewitness</code>.</li>
+  </ul>
+  <p>The canonical example: "188. Memorandum for the Record" is a strong source for
+    <strong>military logic</strong> — the Curator makes that legible and filterable
+    instead of leaving it buried in the corpus.</p>
+
+  <h2>Place in the flow</h2>
+  <p>Runs after the <a href="agent-mapper.html">Mapper</a> (and alongside the
+    <a href="agent-cast-manager.html">Cast Manager</a> / <a href="agent-cast-director.html">Cast
+    Director</a>, all of which read verified+mapped documents). Output is a curated tag layer
+    surfaced as <strong>reader filters</strong> today, and an input to future visualisers.</p>
+
+  <h2>Implementation</h2>
+  <p>Lives in <code>pipeline/doc_curator/__init__.py</code> (class
+    <code>DocumentCurator</code>, pure helpers, a <code>main()</code> CLI). The vocabulary is
+    the pure module <code>lib/doc_flags.py</code>. Persists to the
+    <a href="data-model.html#doc-flags">doc_flags table</a>.</p>
+  <table>
+    <tr><th>Decision</th><th>Resolved as</th></tr>
+    <tr><td>Vocabulary as truth</td><td><code>lib/doc_flags.py</code> is the single source
+      of truth for the flag slugs, names, kinds and descriptions — every consumer (Curator,
+      reader, future visualisers) imports <code>FLAGS</code> rather than hard-coding slugs.
+      Slugs are treated as a stable API (renaming one is a data migration).</td></tr>
+    <tr><td>Schema</td><td>A many-to-many <code>doc_flags</code> table —
+      <code>(doc_id, flag, confidence, rationale, assigned_by, assigned_at)</code>,
+      <code>UNIQUE(doc_id, flag)</code> — plus a <code>flags_curated_at</code> stamp on
+      <code>documents</code> (self-terminating, like the Cast Manager / Director).</td></tr>
+    <tr><td>LLM strategy</td><td><strong>Per document</strong>: each doc is read once (Gemma,
+      <code>think=False</code>) against the flag menu, returning a short JSON list of
+      <code>{slug, confidence, rationale}</code>. Curation is <strong>idempotent</strong> —
+      a doc is re-flagged wholesale (old flags replaced) and capped at 5 flags so a
+      "good-for-everything" doc is good for nothing.</td></tr>
+    <tr><td>Deterministic fallback</td><td><code>--no-llm</code> uses
+      <code>heuristic_flags</code> — keyword frequency per flag (good-for flags only; quality
+      flags are LLM judgements). Offline, fast, deterministic; stamped
+      <code>assigned_by='heuristic'</code> vs. <code>'curator'</code> for the LLM path.</td></tr>
+    <tr><td>Provenance &amp; confidence</td><td>Every flag carries a one-line
+      <code>rationale</code> and a <code>confidence</code> (0–1). The reader shows the
+      confidence and uses the rationale as the chip tooltip.</td></tr>
+  </table>
+
+  <h3>CLI</h3>
+  <pre><code>uv run doc-curator run [--batch 50] [--all] [--re-curate] [--no-llm]
+uv run doc-curator status
+uv run doc-curator clear [--apply]   # wipe all flags (dry-run by default)</code></pre>
+  <p>Records a <code>doc_curator</code> stage against the active <code>run_id</code>.
+    Make targets: <code>make curate</code> / <code>curate-all</code> /
+    <code>curate-status</code> / <code>curate-recurate</code>. Reader filters live on the
+    <a href="admin.html">Archivero page</a> (<code>/api/documents/flags</code>,
+    <code>?flag=</code>).</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-mapper.html">Mapper</a>
+    <a href="agent-cast-manager.html">Cast Manager</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

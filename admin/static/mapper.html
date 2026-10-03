@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapper — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.page { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; min-width: 120px; text-align: center; }
+.card-val { font-size: 24px; color: var(--accent); display: block; line-height: 1; }
+.card-val.ok { color: var(--ok); }
+.card-val.warn { color: var(--warn); }
+.card-val.dim { color: var(--text-dim); }
+.card-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+.bar-chart { display: flex; flex-direction: column; gap: 5px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-label { width: 170px; font-size: 10px; color: var(--text-mid); text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 12px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+.bar-seg { height: 100%; border-radius: 2px; transition: width .5s ease; background: var(--accent); }
+.bar-val { font-size: 10px; color: var(--text-dim); width: 44px; flex-shrink: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.doc-link { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.doc-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+th { color: var(--text-dim); font-weight: normal; text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: .5px; }
+td { padding: 4px 6px; border-bottom: 1px solid #181818; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+.dim { color: var(--text-dim); }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-3 MAPPER</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="page">
+
+  <!-- Counts -->
+  <div class="section">
+    <div class="sec-title">Estado del mapeo (tema × género × mes)</div>
+    <div class="cards">
+      <div class="card"><span class="card-val ok" id="c-mapped">—</span><span class="card-lbl">mapeados</span></div>
+      <div class="card"><span class="card-val warn" id="c-pending">—</span><span class="card-lbl">pendientes</span></div>
+      <div class="card"><span class="card-val dim" id="c-context">—</span><span class="card-lbl">contexto (fuera de período)</span></div>
+      <div class="card"><span class="card-val" id="c-genre-pct">—</span><span class="card-lbl">% con género</span></div>
+    </div>
+  </div>
+
+  <!-- Distributions -->
+  <div class="section">
+    <div class="sec-title">Distribución de documentos mapeados</div>
+    <div class="charts">
+      <div>
+        <div class="sec-title" style="color:var(--text-mid)">Por género</div>
+        <div id="genre-bars" class="bar-chart"><span class="dim">Cargando…</span></div>
+      </div>
+      <div>
+        <div class="sec-title" style="color:var(--text-mid)">Por categoría</div>
+        <div id="cat-bars" class="bar-chart"><span class="dim">Cargando…</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent mappings -->
+  <div class="section">
+    <div class="sec-title">Últimos mapeos</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40%">Título</th>
+          <th>Categoría</th>
+          <th>Género</th>
+          <th>Mes</th>
+          <th>Mapeado</th>
+        </tr>
+      </thead>
+      <tbody id="recent-body"><tr><td colspan="5" class="dim">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderBars(containerId, rows) {
+  const max = Math.max(...rows.map(r => r.n), 1);
+  $(containerId).innerHTML = rows.length ? rows.map(r => `
+    <div class="bar-row">
+      <div class="bar-label" title="${esc(r.label)}">${esc(r.label)}</div>
+      <div class="bar-track"><div class="bar-seg" style="width:${(r.n / max * 100).toFixed(1)}%"></div></div>
+      <div class="bar-val">${r.n}</div>
+    </div>`).join('') : '<span class="dim">Sin documentos mapeados</span>';
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/agents/mapper');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.available) {
+      $('recent-body').innerHTML = '<tr><td colspan="5" class="dim">Sin base de datos — ejecuta el pipeline primero.</td></tr>';
+      return;
+    }
+
+    $('c-mapped').textContent  = d.mapped;
+    $('c-pending').textContent = d.pending;
+    $('c-context').textContent = d.context;
+    const withGenre = (d.by_genre || []).filter(g => g.genre_id !== 0)
+      .reduce((a, g) => a + g.n, 0);
+    $('c-genre-pct').textContent = d.mapped ? Math.round(withGenre / d.mapped * 100) + '%' : '—';
+
+    renderBars('genre-bars', (d.by_genre || []).map(g => ({ label: g.genre, n: g.n })));
+    renderBars('cat-bars', (d.by_category || []).map(c => ({ label: c.category, n: c.n })));
+
+    const recent = d.recent || [];
+    $('recent-body').innerHTML = recent.length ? recent.map(doc => {
+      const dt = doc.mapped_at ? new Date(doc.mapped_at).toLocaleString('es-CL',
+        {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+      return `<tr>
+        <td title="${esc(doc.title)}"><a class="doc-link" href="/archivero?doc=${encodeURIComponent(doc.doc_id)}">${esc(doc.title)}</a></td>
+        <td>${esc(doc.category)}</td>
+        <td class="dim">${esc(doc.genre)}</td>
+        <td class="dim">${esc(doc.month_iso || '—')}</td>
+        <td class="dim">${dt}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="dim">Sin documentos mapeados aún.</td></tr>';
+
+    $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+  } catch (e) { console.error(e); }
+}
+refresh();
+setInterval(refresh, 15_000);
+</script>
+</body>
+</html>

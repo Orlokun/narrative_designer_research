@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rebuild Roadmap — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html" class="here">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Rebuild Roadmap</div>
+  <h1>Rebuild Roadmap</h1>
+  <p class="lede">What was lost, what to rebuild, and the path back to deployment. This page
+    is the work queue for the rebuild.</p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Situation</span>
+    <p>~4 weeks of work (around 6 new agents + heavy Admin enhancements, just before a
+      planned web deployment) were lost when the PC was reformatted and the repo re-cloned
+      from GitHub — that work had never been pushed. Recovery (git reflog/dangling objects,
+      VS Code local history, Windows copy, off-machine backups) came up empty.</p>
+    <p><strong>Baseline:</strong> HEAD <code>c9b4c3a</code> (2026-04-26). <strong>Goal:</strong>
+      restore to the pre-loss state and deploy to the web.</p>
+  </div>
+
+  <div class="callout pending">
+    <span class="label">▶ Architecture being canonicalized — steps 1–8 implemented</span>
+    <p>The canonical pipeline is being shared step-by-step (see
+      <a href="architecture.html#canonical-pipeline">Canonical pipeline</a>). <strong>Steps
+      1–9 are now implemented</strong> (Step 7 Cast Manager + Step 8 Cast Director + Step 9
+      Document Curator). More steps
+      will follow as the architecture is finalised.</p>
+  </div>
+
+  <h2>Confirmed rebuild targets</h2>
+  <table>
+    <tr><th>Step</th><th>Agent</th><th>Role</th></tr>
+    <tr><td>7</td><td><a href="agent-cast-manager.html">Cast Manager</a> <span class="badge real">Done</span></td><td>Extracts people from verified+mapped documents (Gemma, <code>--no-llm</code> fallback), keeps per-character timelines + mentions, and flags new characters <code>needs_research</code> for the Propositor. <code>pipeline/cast_manager/</code> + the <a href="data-model.html#cast">cast tables</a>. Propositor wiring <span class="badge real">Done</span> (entity missions); Admin page <span class="badge real">Done</span> (<code>/cast-manager</code>).</td></tr>
+    <tr><td>8</td><td><a href="agent-cast-director.html">Cast Director</a> <span class="badge real">Done</span></td><td>Per-document Gemma extraction of the character relational layer (family, ally, colleague, rival, enemy, affiliation, superior, mentor) into <a href="data-model.html#cast">character_relations</a>, with provenance + corroboration confidence. <code>pipeline/cast_director/</code>. Admin network page <span class="badge real">Done</span> (<code>/cast-director</code>).</td></tr>
+    <tr><td>9</td><td><a href="agent-doc-curator.html">Document Curator</a> <span class="badge real">Done</span></td><td>Per-document Gemma assignment of <strong>utility flags</strong> (good-for lenses + quality) into <a href="data-model.html#doc-flags">doc_flags</a>, from the fixed <code>lib/doc_flags.py</code> vocabulary; <code>--no-llm</code> keyword fallback. <code>pipeline/doc_curator/</code>. Surfaced as reader filters (closes backlog #4).</td></tr>
+  </table>
+
+  <h2>Character research loop — closed &amp; iterative <span class="badge real">Done</span></h2>
+  <p>Characters now seed their own research and the harvest feeds back to them, so a
+    person's record grows robust over successive cycles instead of one shot.</p>
+  <ul>
+    <li><strong>Seed attribution</strong> (<a href="agent-archivero.html">Archivero</a> +
+      <a href="agent-cast-manager.html">Cast Manager</a>): a doc harvested by a character's
+      entity mission carries <code>documents.seed_character_id</code>; the Cast Manager
+      <strong>force-attributes</strong> it to that seed (a mention) even if the LLM does not
+      re-extract the name — the loop closes deterministically.</li>
+    <li><strong>Iterative &amp; bounded</strong>: <code>refresh_research_flags</code> re-flags a
+      still-thin character (<code>should_research</code>: completeness &lt; 0.85 under the
+      <strong>strict metric</strong>, ≤ 5 attempts, 3-day cooldown) after each cycle;
+      <code>research_attempts</code> / <code>last_research_at</code>
+      bound and pace it. In-flight-only suppression + newest-wins entity dedup let a fresh
+      attempt supersede an earlier done mission.</li>
+    <li><strong>Richer seeds</strong>: <code>entity_queries</code> now draws on the character's
+      aliases and top affiliation (e.g. <code>"Donald Kendall" president of Pepsi-Cola</code>).</li>
+    <li><strong>Strict completeness metric</strong> (done): weighted components + hard gates
+      (no Wikidata/Wikipedia analysis → ≤0.60; &lt;3 of 4 timeline kind groups → ≤0.75; no
+      completed entity mission → ≤0.80); breakdown persisted in
+      <code>completeness_detail</code>. See <a href="agent-cast-manager.html">Cast Manager</a>.</li>
+    <li><strong><code>cast-manager analyze</code></strong> (done): Wikidata claims + the
+      Wikipedia article are mined into the profile/timeline (facts, vital dates, biography),
+      stamping the <code>*_analyzed_at</code> gates; implausible homonym links (birth &gt; 1973)
+      are undone. See <a href="agent-cast-manager.html">Cast Manager</a>.</li>
+    <li><strong><code>statement</code>/<code>rumor</code> extraction</strong> (done): the
+      extraction prompt captures quotes (with their speech act) and attributed hearsay;
+      unattributed rumors are rejected. With analyze + article bios in place, every lever
+      a character needs to reach ≥0.85 under the strict metric now exists — backfill the
+      existing corpus with <code>cast-manager run --re-extract</code>.</li>
+    <li><strong><code>make pipeline-characters</code></strong> (done): a whole cycle
+      focused on completing incomplete characters — <code>propositor --focus characters</code>
+      mints entity missions only (least-complete first), the standard chain harvests, and
+      the Cast Manager extracts → enriches → analyzes → re-scores. Trigger
+      <code>characters</code> in run tracking; the normal <code>make pipeline</code> now also
+      advances enrich/analyze in small bounded batches.</li>
+    <li><strong>Calibration tooling</strong> (done): <code>cast-manager score</code> /
+      <code>make cast-score</code> bulk-recomputes all completeness under the current
+      constants (run it after deploying a metric change); the admin cast sidebar shows the
+      score histogram + per-gate counts, and each detail its component breakdown — the
+      evidence base for tuning weights/targets against the real corpus.</li>
+    <li><strong>Location Manager (Ag-4)</strong> (done): the spatial twin of the cast
+      loop — places where events happen, with descriptions/appreciations/events/data,
+      Wikidata GPS + architect + Wikipedia trivia via <code>location-manager
+      enrich/analyze</code>, and <code>kind='location'</code> Propositor missions
+      (architectural docs, plans, place history) closed by
+      <code>documents.seed_location_id</code>. The admin <strong>Locations page</strong>
+      (<code>/locations</code>: SVG coordinate map + list + detail) is done. Follow-ups:
+      <code>locations.geojson</code> export, Nominatim fallback — see
+      <a href="agent-location-manager.html">Location Manager</a>.</li>
+  </ul>
+
+  <h2>Improvement backlog — user feedback (June 2026)</h2>
+  <p>Improvements raised after the first end-to-end cast runs. <strong>All six items
+    <span class="badge real">Done</span></strong> — item 4 (document utility flags) shipped
+    July 2026 as the <a href="agent-doc-curator.html">Document Curator</a> (Step 9).</p>
+
+  <h3>1 · Cast Manager extraction recall <span class="badge real">Done</span></h3>
+  <p>The <a href="agent-cast-manager.html">Cast Manager</a> misses named people in
+    documents it <em>does</em> process. <strong>Confirmed</strong> on "188. Memorandum for
+    the Record" (mapped to EEUU, <code>cast_extracted</code>): Richard Helms was captured,
+    but <strong>Agustín Edwards</strong> and <strong>Donald Kendall</strong> (president of
+    Pepsi-Cola) were not — so this is an LLM <em>recall</em> gap, not a coverage gap.</p>
+  <ul>
+    <li>Sharpen the people-extraction prompt to enumerate <strong>every</strong> named
+      person, including foreign businessmen, and to carry their role/affiliation as a fact
+      ("Donald Kendall — president of Pepsi-Cola").</li>
+    <li>Consider a larger model for this step, or a deterministic NER second pass to
+      backstop Gemma's misses.</li>
+    <li>Add a <code>--re-extract</code> mode that re-mines already-processed documents (the
+      current <code>cast_extracted_at</code> stamp makes runs skip them).</li>
+  </ul>
+  <p><strong>Shipped (July 2026):</strong> sharpened exhaustive prompt; a high-precision
+    <strong>cued backstop</strong> (<code>cued_person_names</code> — honorific-before or
+    role-after cues, organisation/place stoplist) that unions names the LLM missed on the
+    LLM path; and <code>cast-manager run --re-extract</code> / <code>make cast-remine</code>.
+    <em>Remaining:</em> run a full re-mine once Ollama is back up; a larger model or a
+    proper NER (spaCy PERSON) pass is still an option for further recall.</p>
+
+  <h3>2 · Wikidata &amp; Wikipedia links per character <span class="badge real">Done</span></h3>
+  <p>Each character should link out to its <strong>Wikidata entity</strong> and
+    <strong>Wikipedia page</strong> for grounding and disambiguation. Store
+    <code>wikidata_id</code> / <code>wikipedia_url</code> on <code>characters</code>
+    (resolved by name lookup against Wikidata — ties into the deferred
+    <a href="sources.html">Wikidata-SPARQL connector</a>) and surface them as links on the
+    <code>/cast-manager</code> detail. Also a natural source for birth/death dates and the
+    political position below.</p>
+  <p><strong>Shipped (July 2026):</strong> <code>characters</code> gained
+    <code>wikidata_id</code> / <code>wikipedia_url</code> / <code>wikidata_desc</code> /
+    <code>wikidata_checked_at</code>; <code>cast-manager enrich</code> resolves them via the
+    Wikidata API through the Gatekeeper (Spanish Wikipedia preferred, idempotent); the
+    <code>/cast-manager</code> detail shows the external links + the Wikidata description.
+    <em>Note:</em> the running Gatekeeper must be restarted once to pick up the new
+    <code>www.wikidata.org</code> rate limit, else enrichment falls back to the slow default.</p>
+
+  <h3>3 · Political compass per character → relation semantics <span class="badge real">Done</span></h3>
+  <p>Give each character a 2-axis political position — <strong>left ↔ right</strong> and
+    <strong>liberal ↔ authoritarian</strong> — and let it inform the
+    <a href="agent-cast-director.html">Cast Director</a>. Today opposed figures can be
+    mislabelled: <strong>Kissinger and Allende are not <code>afiliados</code></strong> —
+    they are counterparts, even adversaries.</p>
+  <ul>
+    <li>Add a political-position field per character (LLM-inferred + corroborated, or from
+      Wikidata), shown on the cast detail (a small compass).</li>
+    <li>Add a <code>contraparte</code> (counterpart) relation kind, and use the compass as a
+      sanity check: two far-apart positions should not yield <code>afiliacion</code>.</li>
+    <li>Feed the position into the Cast Director prompt so the relation kind reflects
+      ideological distance, not just co-occurrence.</li>
+  </ul>
+  <p><strong>Shipped (July 2026):</strong> a pure <code>lib/politics.py</code> (2-axis
+    compass — economic left↔right, social libertarian↔authoritarian; distance, quadrant
+    labels, <code>refine_relation_kind</code>). <code>characters</code> gains
+    <code>pol_economic</code>/<code>pol_social</code>/<code>pol_label</code>/…;
+    <code>cast-manager politics</code> places each character via Gemma. The Cast Director
+    adds a <code>contraparte</code> kind and, on upsert, downgrades a claimed
+    <code>afiliacion</code> between ideologically distant figures to <code>contraparte</code>
+    (Kissinger↔Allende); its prompt now forbids "political" for opponents. The
+    <code>/cast-manager</code> detail shows a small compass; the graph colours
+    <code>contraparte</code>. This also closes item 5's extraction-precision half.</p>
+
+  <h3>4 · Document utility flags <span class="badge real">Done</span></h3>
+  <p>Some documents are especially good inputs for a particular visualiser — e.g. "188.
+    Memorandum for the Record" is a strong source for <strong>military logic</strong>. Let
+    documents carry <strong>utility flags / tags</strong> (e.g. <code>good-for:
+    military-logic</code>, <code>high-value</code>) so a downstream view can pull a curated
+    set.</p>
+  <p><strong>Shipped (July 2026):</strong> a dedicated curation step — the
+    <a href="agent-doc-curator.html">Document Curator</a> (Step 9, Ag-9,
+    <code>pipeline/doc_curator/</code>). A pure vocabulary registry
+    <code>lib/doc_flags.py</code> (six <em>good-for</em> lenses — military-logic,
+    economic-planning, diplomacy, popular-life, ideology-rhetoric, science-technology — plus
+    two <em>quality</em> flags — high-value, eyewitness). A many-to-many
+    <a href="data-model.html#doc-flags">doc_flags</a> table with confidence + rationale +
+    provenance; <code>flags_curated_at</code> makes runs self-terminating. Gemma assigns the
+    flags per document (<code>--no-llm</code> keyword heuristic as a deterministic fallback);
+    <code>doc-curator run/status/clear</code> + <code>make curate*</code>. Surfaced in the
+    reader as <strong>flag chips</strong> on each document and a <strong>utility filter</strong>
+    (<code>/api/documents/flags</code>, <code>?flag=</code>). <em>Remaining:</em> feed the
+    flags into the future visualisers as they land.</p>
+
+  <h3>5 · Cast Director relation clarity &amp; precision <span class="badge real">UI done</span></h3>
+  <p>The relations on the <code>/cast-director</code> network are not legible enough — the
+    user wants <strong>more detail and precision</strong>.</p>
+  <ul>
+    <li><strong>UI:</strong> directional arrowheads on directed edges, an edge tooltip/panel
+      showing the justifying description + provenance documents, kind/confidence filters, and
+      a clearer label layout than the current force graph.</li>
+    <li><strong>Extraction precision:</strong> tighten the relation taxonomy (see item 3) so
+      kinds are correct, and raise the confidence bar for what is drawn by default.</li>
+  </ul>
+  <p><strong>Shipped (July 2026, UI):</strong> directional arrowheads on directed edges;
+    an edge <strong>hover label</strong> (native tooltip naming both characters, the relation
+    kind, confidence and its description) and a click-through <strong>detail panel</strong>
+    (both characters linked, description, confidence,
+    provenance document links); <strong>kind filter chips</strong> and a
+    <strong>confidence-threshold slider</strong>; edge width + opacity scaled by
+    confidence; <code>/cast/graph</code> edges now carry description, provenance and
+    directedness. <em>Remaining:</em> the extraction-precision half (correct kinds, e.g.
+    Kissinger↔Allende) lands with item 3 (political compass).</p>
+
+  <h3>6 · Deterministic cast validity filter <span class="badge real">Done</span></h3>
+  <p>Noisy extraction (especially the <code>--no-llm</code> heuristic) created nonsensical
+    characters — "El", "October", "Presidente", "Classification". <strong>Shipped (July
+    2026):</strong> <code>is_plausible_person_name()</code> — rejects names that are entirely
+    boilerplate, bare titles, months, organisations or function words, while keeping real
+    people (surname-only "Lanusse", title-prefixed "General Carlos Prats"). It gates
+    extraction (prevention) and backs <code>cast-manager clean</code> (dry-run by default,
+    <code>--apply</code> deletes + cascades). Chosen over an LLM verifier — deterministic,
+    fast, free. Applied to the live DB: removed 13 garbage characters.</p>
+  <p><strong>Hardened (July 2026, "Banco Edwards" regression):</strong> the bank passed the
+    filter (only "banco" is an org token) and became a character; its single-token alias
+    "Edwards" then let the merge pass absorb <strong>Agustín Edwards</strong> (the person,
+    from doc "89. Memorandum for the Record") into the bank. Two fixes: a name opening with
+    an <strong>institution designator</strong> (<code>_ORG_DESIGNATOR_STARTS</code> — banco,
+    radio, diario, universidad…) is never a person; and coreference
+    (<code>resolve_character_key</code>) only lets <strong>person-shaped forms anchor a
+    match</strong>, so an org form or alias can never bridge a person into it. Live DB
+    repaired: Agustín Edwards split out as his own character (mentions + personal facts,
+    <code>needs_research=1</code>); the bank deleted via <code>clean --apply</code>.</p>
+
+  <h2>Matrix redesign — genre axis <span class="badge real">Done</span></h2>
+  <p>The research matrix became 3D in June 2026: <strong>16 themes × 13 genres × 48
+    months</strong> (see <a href="coverage-matrix.html">Coverage Matrix</a>). The Y axis
+    keeps the themes; the new X axis tracks <strong>genre / document type</strong>
+    (discurso, carta y telex, cable diplomático, documento oficial, transcripción, prensa
+    informativa, prensa de opinión, informe técnico, académico, testimonio, poesía y
+    canción, narrativa y teatro, propaganda); months remain as the third axis +
+    critical-month boosts. Built across the stack: <code>lib/genres.py</code> (registry +
+    plausibility priors), <code>lib/coverage.py</code> (shared 3D table), Mapper genre
+    classification, Propositor 3D ranking with genre-routed sources, Admin theme×genre
+    heatmap.</p>
+  <ul>
+    <li><strong>Follow-up:</strong> re-map the existing corpus so it gains genres —
+      <code>make remap-all</code> (old docs sit in genre 0 until then).</li>
+    <li><strong>Follow-up:</strong> curate the plausibility priors in
+      <code>lib/genres.py</code> as the corpus grows.</li>
+    <li><strong>Follow-up:</strong> when the Cambridge key-gated APIs land (ProQuest,
+      Gale, JSTOR, HathiTrust, BCN…), add each to the per-genre source lists.</li>
+  </ul>
+
+  <h2>Planned admin &amp; pipeline additions</h2>
+  <table>
+    <tr><th>Item</th><th>Layer</th><th>What it does</th></tr>
+    <tr><td>Performance page <span class="badge real">Done</span></td><td>admin</td><td>Each full pipeline run (<code>make pipeline</code>) mints a shared <strong>run id</strong>; every agent/section stamps its timing against it. The page shows how long each pipeline session took, broken down per agent and per section. <strong>Built</strong>: <code>admin/routers/performance.py</code> + <code>admin/static/performance.html</code>, served at <code>/performance</code>.</td></tr>
+    <tr><td>Results page <span class="badge planned">Planned</span></td><td>admin</td><td>Shows what the <em>latest</em> pipeline instance produced: the newly <strong>verified documents</strong> and the newly <strong>added characters</strong>, keyed by that run's id.</td></tr>
+    <tr><td>Key-gated API step <span class="badge planned">Planned</span></td><td>pipeline / sources</td><td>A dedicated step / config point for adding sources whose APIs require <strong>manually-supplied API keys</strong> (stored in <code>.env</code> / <code>lib.config.settings</code>), distinct from the current keyless connectors. See <a href="sources.html">Sources &amp; APIs</a>.</td></tr>
+  </table>
+  <p>The Performance + Results pages depend on a per-run identifier shared across agents.
+    <strong>That foundation is now built</strong> <span class="badge real">Done</span>:
+    <code>pipeline_runs</code> + <code>pipeline_run_stages</code> tables, a <code>run_id</code>
+    stamp on verified documents, the <code>pipeline-run</code> CLI, and per-stage recording in
+    every agent (see <a href="data-model.html#run-tracking">Data Model → run tracking</a>). The
+    <strong>Performance page is now built</strong> on top of it <span class="badge real">Done</span>;
+    the Results page follows, but its "new characters" half needs character stamping, which
+    arrives with the <a href="agent-cast-manager.html">Cast Manager</a>.</p>
+
+  <h2>Admin page — Cast Manager <span class="badge real">Done</span></h2>
+  <p>The admin view over the <a href="agent-cast-manager.html">Cast Manager</a>'s character data —
+    built as designed below (<code>admin/routers/cast.py</code> + <code>admin/static/cast-manager.html</code>,
+    served at <code>/cast-manager</code>).</p>
+  <ul>
+    <li><strong>Left sidebar — character list:</strong>
+      <ul>
+        <li>One row per character, each showing an <strong>information-completeness score (0–1)</strong>
+          (how much is known about that character).</li>
+        <li>A <strong>search bar</strong> to find characters.</li>
+        <li>Rows are <strong>clickable</strong> — selecting one loads its detail in the central section.</li>
+      </ul>
+    </li>
+    <li><strong>Central section — selected character detail:</strong>
+      <ul>
+        <li>A <strong>timeline</strong> of the character's roles/positions and key events —
+          personal, professional and social.</li>
+        <li>A <strong>biographical summary</strong> of no more than one paragraph.</li>
+        <li>The <strong>list of documents</strong> in which the character is mentioned.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h2>Admin page — Cast Director <span class="badge real">Done</span></h2>
+  <p>The admin view over the <a href="agent-cast-director.html">Cast Director</a>'s relational layer.</p>
+  <ul>
+    <li>A <strong>character relationship map</strong> — friendships, collaborators, counterparts,
+      enemies, family, etc.</li>
+    <li>The relationship map is rendered as a <strong>network / graph</strong>.</li>
+    <li><strong>Who mentions the character</strong> — the <em>people</em> who mention them
+      (the speakers/sources), not the documents.</li>
+    <li><strong>Associated institutions or groups.</strong></li>
+  </ul>
+
+  <h2>Open architectural questions</h2>
+  <ul>
+    <li><strong>Verificator threshold — done.</strong> Scale is <code>0.0–1.0</code>,
+      threshold <strong>0.6</strong> (&lt; 0.6 → dropped). Default raised from 0.3 to 0.6
+      and <code>verificator clean</code> now runs inside every pipeline target right after
+      verification (June 2026).</li>
+    <li><strong>Entity-driven missions — done.</strong> The
+      <a href="agent-propositor.html">Propositor</a> now polls
+      <code>fetch_characters_needing_research()</code> each cycle and mints
+      <code>kind='entity'</code> missions (capped by <code>--entity-limit</code>), so its queue
+      is fed by both matrix gaps and new characters. Entity missions never touch the coverage
+      matrix.</li>
+  </ul>
+
+  <h2>Source connectors</h2>
+  <p>Coverage expanded with 4 new connectors (Semantic Scholar, Chronicling America,
+    Wikipedia ES, Marxists.org) wired through the <a href="gatekeeper.html">Gatekeeper</a> +
+    <a href="agent-archivero.html">Archivero</a> + <a href="agent-propositor.html">Propositor</a>
+    tiers. Four more are <span class="badge planned">Deferred</span> pending design
+    (SciELO, HathiTrust, BCN, Wikidata-SPARQL). Full roster: <a href="sources.html">Sources &amp; APIs</a>.</p>
+
+  <h2>Other items (status unclear, likely partial scope)</h2>
+  <p>The repo also has these legacy stubs from the initial scaffold. The user hasn't
+    confirmed whether any of them were part of the lost 4 weeks — listed here so they're
+    not forgotten:</p>
+  <table>
+    <tr><th>Stub</th><th>Layer</th><th>Inferred role</th></tr>
+    <tr><td>Canonicalizador</td><td>pipeline</td><td>Dedup, normalize encoding, enrich Dublin Core metadata.</td></tr>
+    <tr><td>Indexador</td><td>pipeline</td><td>BGE-m3 embeddings + ChromaDB + FTS5 index for RAG.</td></tr>
+    <tr><td>Chronicler</td><td>research_engine</td><td>Enrich docs with speech acts, characters, places.</td></tr>
+    <tr><td>Curador Floresiano</td><td>pipeline</td><td>Curate Floresian dialogue examples (DialogueExample).</td></tr>
+    <tr><td>Diseñador Narrativo / Game / Level Designer</td><td>pipeline</td><td>Narrative nodes, scenarios, game rules.</td></tr>
+    <tr><td>NPC Pool / Event Generator</td><td>runtime</td><td>NPC personas; tension-calibrated narrative events.</td></tr>
+    <tr><td>Comparador / Evaluador</td><td>analysis</td><td>Compare conditions (baseline vs floresian); evaluate outputs.</td></tr>
+    <tr><td>Admin enhancements</td><td>admin</td><td>The "heavy" dashboard work beyond the surviving baseline pages.</td></tr>
+  </table>
+
+  <h2>Workstreams</h2>
+  <ol>
+    <li><strong>Wiki foundation</strong> <span class="badge real">Done</span> — this knowledge base; CLAUDE.md slimmed to a pointer.</li>
+    <li><strong>Confirm scope</strong> <span class="badge planned">Next</span> — list the 6 agents + what each did; fill this page.</li>
+    <li><strong>Rebuild agents</strong> <span class="badge planned">Rebuild</span> — TDD per the <a href="rules.html">Rules</a>: tests first, class + <code>main()</code>, docstrings, wiki page.</li>
+    <li><strong>Admin enhancements</strong> <span class="badge planned">Rebuild</span> — restore the dashboard work.</li>
+    <li><strong>Deploy</strong> <span class="badge planned">Goal</span> — publish to the website.</li>
+  </ol>
+
+  <div class="callout protocol">
+    <span class="label">▶ Prevent a repeat</span>
+    <p>Commit and <strong>push regularly</strong> — the remote is the backup. See the Git
+      section of the <a href="rules.html">Rules</a>.</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agents.html">Agents</a>
+    <a href="rules.html">Rules</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="admin.html">Admin Dashboard</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

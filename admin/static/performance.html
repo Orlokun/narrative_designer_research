@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.page { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+/* Run list */
+.run-list { display: flex; flex-direction: column; gap: 6px; max-height: 70vh; overflow-y: auto; }
+.run-row { background: var(--panel-2); border: 1px solid var(--border); border-left: 2px solid var(--border); border-radius: 3px; padding: 8px 10px; cursor: pointer; transition: border-color .15s; }
+.run-row:hover { border-color: var(--accent-dim); }
+.run-row.active { border-left-color: var(--accent); background: #1b1505; }
+.run-row .rid { color: var(--text); font-size: 10px; word-break: break-all; }
+.run-row .meta { display: flex; justify-content: space-between; margin-top: 4px; font-size: 9px; color: var(--text-dim); }
+.run-row .dur { color: var(--accent); font-variant-numeric: tabular-nums; }
+.status { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; padding: 1px 5px; border-radius: 2px; }
+.status.done { color: var(--ok); border: 1px solid #14532d; }
+.status.running { color: var(--warn); border: 1px solid #713f12; }
+.status.failed { color: var(--error); border: 1px solid #7f1d1d; }
+/* Cards */
+.cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; min-width: 110px; text-align: center; }
+.card-val { font-size: 22px; color: var(--accent); display: block; line-height: 1; }
+.card-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }
+/* Stage bars */
+.stage { margin-bottom: 10px; }
+.stage-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+.stage-name { color: var(--text); font-size: 10px; }
+.stage-dur { color: var(--accent); font-size: 10px; font-variant-numeric: tabular-nums; }
+.bar-track { width: 100%; height: 8px; background: #1c1c1c; border-radius: 2px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .5s ease; min-width: 2px; }
+.stage-counts { margin-top: 3px; font-size: 9px; color: var(--text-mid); }
+.tag { display: inline-block; margin-right: 8px; }
+.tag b { color: var(--text); font-weight: normal; }
+.empty { color: var(--text-dim); padding: 20px 0; text-align: center; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">PERFORMANCE — TIEMPOS POR EJECUCIÓN</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="page">
+
+  <!-- Run list -->
+  <div class="section">
+    <div class="sec-title">Ejecuciones del pipeline</div>
+    <div class="run-list" id="run-list"><div class="empty">Cargando…</div></div>
+  </div>
+
+  <!-- Selected run detail -->
+  <div class="section">
+    <div class="sec-title" id="detail-title">Detalle de ejecución</div>
+    <div id="detail"><div class="empty">Selecciona una ejecución a la izquierda.</div></div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+let runs = [];          // cached list from /api/performance
+let selectedId = null;  // currently shown run_id
+
+function fmtSecs(s) {
+  if (s == null) return '—';
+  if (s < 60) return s.toFixed(1) + 's';
+  const m = Math.floor(s / 60), rem = Math.round(s % 60);
+  return `${m}m ${rem}s`;
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString('es-CL'); } catch { return iso; }
+}
+
+function statusClass(s) {
+  return s === 'done' ? 'done' : s === 'failed' ? 'failed' : 'running';
+}
+
+function renderRunList() {
+  if (!runs.length) {
+    $('run-list').innerHTML = '<div class="empty">Sin ejecuciones registradas. Ejecuta <b>make pipeline</b>.</div>';
+    return;
+  }
+  $('run-list').innerHTML = runs.map(r => `
+    <div class="run-row ${r.run_id === selectedId ? 'active' : ''}" data-id="${r.run_id}">
+      <div class="rid">${r.run_id}</div>
+      <div class="meta">
+        <span class="status ${statusClass(r.status)}">${r.status}</span>
+        <span>${r.stage_count} etapas</span>
+        <span class="dur">${fmtSecs(r.duration_s ?? r.stages_total_s)}</span>
+      </div>
+    </div>`).join('');
+
+  document.querySelectorAll('.run-row').forEach(el =>
+    el.addEventListener('click', () => selectRun(el.dataset.id)));
+}
+
+function renderDetail(run) {
+  if (!run) { $('detail').innerHTML = '<div class="empty">Ejecución no encontrada.</div>'; return; }
+
+  const stages = run.stages || [];
+  const maxDur = Math.max(...stages.map(s => s.duration_s), 0.001);
+  const wall = run.duration_s;
+
+  $('detail-title').textContent = 'Detalle · ' + run.run_id;
+
+  const cards = `
+    <div class="cards">
+      <div class="card"><span class="card-val">${fmtSecs(wall)}</span><span class="card-lbl">duración total</span></div>
+      <div class="card"><span class="card-val">${fmtSecs(run.stages_total_s)}</span><span class="card-lbl">suma de etapas</span></div>
+      <div class="card"><span class="card-val">${run.stage_count}</span><span class="card-lbl">etapas</span></div>
+      <div class="card"><span class="card-val" style="font-size:13px">${run.trigger || '—'}</span><span class="card-lbl">disparador</span></div>
+    </div>
+    <div style="font-size:9px;color:var(--text-dim);margin:6px 0 12px">
+      Inicio ${fmtTime(run.started_at)} · Fin ${fmtTime(run.finished_at)} · Estado
+      <span class="status ${statusClass(run.status)}">${run.status}</span>
+    </div>`;
+
+  const bars = stages.length ? stages.map(s => {
+    const pct = Math.max(2, (s.duration_s / maxDur) * 100);
+    const counts = Object.entries(s.counts || {});
+    const countHtml = counts.length
+      ? '<div class="stage-counts">' + counts.map(([k, v]) =>
+          `<span class="tag">${k}: <b>${v}</b></span>`).join('') + '</div>'
+      : '';
+    return `<div class="stage">
+      <div class="stage-head">
+        <span class="stage-name">${s.stage}</span>
+        <span class="stage-dur">${fmtSecs(s.duration_s)}</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      ${countHtml}
+    </div>`;
+  }).join('') : '<div class="empty">Esta ejecución no registró etapas.</div>';
+
+  $('detail').innerHTML = cards + bars;
+}
+
+async function selectRun(runId) {
+  selectedId = runId;
+  renderRunList();
+  try {
+    const r = await fetch('/api/performance/' + encodeURIComponent(runId));
+    if (!r.ok) return;
+    const d = await r.json();
+    renderDetail(d.run ? { ...d.run, stages: d.stages } : null);
+  } catch (e) { console.error(e); }
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/performance');
+    if (!r.ok) return;
+    const d = await r.json();
+    runs = d.runs || [];
+
+    // Auto-select the most recent run on first load.
+    if (selectedId === null && runs.length) {
+      selectRun(runs[0].run_id);
+    } else {
+      renderRunList();
+    }
+    $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+  } catch (e) { console.error(e); }
+}
+refresh();
+setInterval(refresh, 15_000);
+</script>
+</body>
+</html>

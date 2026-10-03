@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html" class="here">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Architecture</div>
+  <h1>Architecture</h1>
+  <p class="lede">How the pieces fit: a linear harvesting pipeline backed by a single
+    SQLite database, with all outbound HTTP funnelled through one gatekeeper.</p>
+
+  <h2 id="canonical-pipeline">Canonical pipeline</h2>
+  <p>The canonical step-by-step that defines the project. Steps 1–9 are implemented (with
+    the threshold question noted below); more steps will be added as the design is
+    finalised.</p>
+  <table>
+    <tr><th>#</th><th>Step</th><th>Type</th><th>Role</th></tr>
+    <tr><td>1</td><td><a href="agent-propositor.html">Propositor</a></td><td>Agent · Gemma</td><td>Reads the heatmap (coverage matrix) and creates queries for the gaps.</td></tr>
+    <tr><td>2</td><td><a href="gatekeeper.html">Gatekeeper</a></td><td>Software / class</td><td>Calls all APIs, respecting their policies and document types, with the queries from the Propositor. Full source list: <a href="sources.html">Sources &amp; APIs</a>.</td></tr>
+    <tr><td>3</td><td><a href="agent-archivero.html">Archivero</a></td><td>Agent</td><td>Reads metadata and the file to organise document type and store it.</td></tr>
+    <tr><td>4</td><td><a href="agent-verificator.html">Verificator</a></td><td>Agent · Gemma</td><td>Reads the file and assesses how relevant it is for Cybersyn / Allende / Fernando Flores research.</td></tr>
+    <tr><td>5</td><td><a href="agent-verificator.html#cleaner">Cleaner</a></td><td>Logic (in Verificator)</td><td>If the Verificator score is below the threshold (<strong>&lt; 0.6</strong> on the 0.0–1.0 scale), the file is dropped. Runs in every pipeline target right after the Verificator.</td></tr>
+    <tr><td>6</td><td><a href="agent-mapper.html">Mapper</a></td><td>Agent · Gemma</td><td>Reads the document and establishes its position on the heatmap.</td></tr>
+    <tr><td>7</td><td><a href="agent-cast-manager.html">Cast Manager</a> <span class="badge real">Real</span></td><td>Agent</td><td>Reads documents, extracts people mentioned (and who mentions them, when available), and adds each character to the database. Keeps a timeline of facts and data per character so the <a href="agent-propositor.html">Propositor</a> can later research that character.</td></tr>
+    <tr><td>8</td><td><a href="agent-cast-director.html">Cast Director</a> <span class="badge real">Real</span></td><td>Agent</td><td>Reads documents and the Cast Manager's hard data to extract more complex information: affective / familial relations, political affiliations, colleagues, enemies, etc.</td></tr>
+    <tr><td>9</td><td><a href="agent-doc-curator.html">Document Curator</a> <span class="badge real">Real</span></td><td>Agent · Gemma</td><td>Reads each verified+mapped document and assigns <strong>utility flags</strong> — what it is especially good for (good-for lenses + quality) — into <a href="data-model.html#doc-flags">doc_flags</a>, surfaced as reader filters.</td></tr>
+    <tr><td>10</td><td><a href="agent-location-manager.html">Location Manager</a> <span class="badge real">Real</span></td><td>Agent · Gemma</td><td>Reads documents and extracts the <strong>places where events happen</strong> — with descriptions, appreciations, events and hard data per location, GPS/architect from Wikidata, and location research missions fed back to the Propositor. Runs alongside the Cast Manager (independent stamp).</td></tr>
+    <tr><td>…</td><td colspan="3"><em>More steps to follow — to be added as they are confirmed.</em></td></tr>
+  </table>
+
+  <div class="callout protocol">
+    <span class="label">▶ Verificator threshold — decided &amp; applied</span>
+    <p>Score scale is <strong>0.0–1.0</strong>; the threshold is <strong>0.6</strong>
+      (score &lt; 0.6 → dropped by the Cleaner). The code default is
+      <code>min_score = 0.6</code>, and <code>verificator clean</code> runs inside every
+      pipeline target (<code>pipeline</code>, <code>pipeline-loop</code>, <code>drain</code>,
+      <code>drain-loop</code>) right after verification.</p>
+  </div>
+
+  <h2>Data flow</h2>
+  <div class="flow">
+    <span class="step">Propositor</span><span class="arrow">→</span>
+    <span class="step">Gatekeeper</span><span class="arrow">→</span>
+    <span class="step">Archivero</span><span class="arrow">→</span>
+    <span class="step">Verificator</span><span class="arrow">→</span>
+    <span class="step">Cleaner</span><span class="arrow">→</span>
+    <span class="step">Mapper</span><span class="arrow">→</span>
+    <span class="step">Cast Manager</span><span class="arrow">→</span>
+    <span class="step">Cast Director</span><span class="arrow">→</span>
+    <span class="step">…</span>
+  </div>
+  <pre>Propositor ──queries──▶ Gatekeeper ──HTTP──▶ APIs ──raw responses──▶ Archivero
+                                                                          │
+                                                                          ▼
+                                                              documents table
+                                                              (dedup by SHA-256)
+                                                                          │
+                                       ┌─score &lt; .6─▶ Cleaner ──drop      ▼
+   Verificator (Gemma) ◀──reads docs───┤              (delete row)
+                                       └─score ≥ .6─▶ Mapper (Gemma) ──category + month
+                                                                          │
+                                                                          ▼
+                                                        coverage table (16×13×48 cube)
+                                                                          │
+                                                                          ▼
+                                                        Cast Manager ──people + timelines
+                                                              │
+                                                              ├──▶ feeds Propositor
+                                                              │     (entity-driven missions)
+                                                              ▼
+                                                        Cast Director ──relations,
+                                                                       affiliations, etc.
+                                                                          │
+                                                                          ▼
+                                                        Location Manager ──places + facts
+                                                              │       (GPS, architect, trivia)
+                                                              ├──▶ feeds Propositor
+                                                              │     (location missions)
+                                                              ▼
+                                                                   (more steps…)
+
+All HTTP ──▶ Gatekeeper (:8001) ──▶ external sources
+                 └── rate limits · circuit breaker · 7-day disk cache</pre>
+  <p>Agents are <strong>CLI tools, not long-running services</strong>; only the
+    <a href="gatekeeper.html">Gatekeeper</a> and the <a href="admin.html">Admin</a>
+    dashboard stay up permanently. See <a href="commands.html">Commands</a> for how a full
+    cycle is invoked (<code>make pipeline</code>).</p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Entity-driven missions — built</span>
+    <p>The Propositor's mission queue is fed by two sources: <strong>matrix coverage
+      gaps</strong> <em>and</em> <strong>new characters surfaced by the
+      <a href="agent-cast-manager.html">Cast Manager</a></strong> (research that person).
+      Each cycle the <a href="agent-propositor.html">Propositor</a> polls the
+      <code>needs_research</code> queue and mints <code>kind='entity'</code> missions; the
+      Archivero runs them like any other mission but never writes their nominal cell to the
+      coverage matrix. The mission mix is selectable at pipeline start:
+      <code>propositor --focus mixed|cells|characters</code> — and
+      <code>make pipeline-characters</code> runs a whole cycle focused on completing
+      incomplete characters (entity missions only, least-complete first, then extract →
+      enrich → analyze). The <a href="agent-location-manager.html">Location Manager</a>
+      feeds the queue the same way: <code>kind='location'</code> missions (architectural
+      docs, plans, place history) mint in mixed mode via <code>--location-limit</code>,
+      with <code>documents.seed_location_id</code> closing that loop.
+      See <a href="commands.html">Commands</a>.</p>
+  </div>
+
+  <h2>SQLite is the single source of truth</h2>
+  <p>One database: <code>data/archivo/archivo.sqlite</code>. Three main tables — see
+    <a href="data-model.html">Data Model</a> for full columns:</p>
+  <table>
+    <tr><th>Table</th><th>Written by</th><th>Role</th></tr>
+    <tr><td><code>missions</code></td><td>Propositor</td><td>Gap-ranked + entity (character-research) search missions. Lifecycle <code>pending → running → done | failed</code>.</td></tr>
+    <tr><td><code>documents</code></td><td>Archivero (+ Verificator, Mapper stamps)</td><td>All fetched documents, deduplicated by SHA-256.</td></tr>
+    <tr><td><code>coverage</code></td><td>Archivero / Mapper</td><td>Per-cell coverage score for the 16×13×48 matrix (genre 0 = unclassified). Schema owned by <code>lib/coverage.py</code>.</td></tr>
+  </table>
+  <p>The <code>missions.json</code> snapshot and <code>documents.json</code> export are
+    <strong>derived views — never use them as input</strong>.</p>
+
+  <h2>Mission failure logic (Archivero)</h2>
+  <table>
+    <tr><th>Outcome</th><th>Condition</th></tr>
+    <tr><td><strong>DONE</strong></td><td>At least one document found (new or duplicate SHA-256).</td></tr>
+    <tr><td><strong>PENDING</strong> (reset)</td><td>All fetch attempts failed at network level (timeout/5xx) — retried next cycle, not marked failed.</td></tr>
+    <tr><td><strong>FAILED</strong></td><td>Sources reachable but returned no extractable content.</td></tr>
+  </table>
+
+  <h2>Source routing in Archivero</h2>
+  <ul>
+    <li><strong>JSON API sources</strong> (<code>_JSON_SOURCES</code>): <code>archive.org</code>,
+      <code>frus</code>, <code>openalex</code>, <code>crossref</code>, <code>wikisource_es</code> —
+      each has a dedicated extractor in <code>_JSON_EXTRACTORS</code>.</li>
+    <li><strong>HTML sources</strong>: <code>bn_digital</code>, <code>web_serp</code> —
+      passed through trafilatura (80-char minimum applies only to HTML extractions).</li>
+    <li><code>_ERROR_PATTERNS</code> rejects known bot-challenge / error pages before insertion.</li>
+    <li><code>frus</code> queries archive.org with a FRUS+Chile+diplomatic prefix (US State
+      Dept declassified docs); it reuses <code>_archiveorg_extract</code>.</li>
+  </ul>
+
+  <h2>Gatekeeper fronts all HTTP</h2>
+  <p>Every outbound request goes through <code>POST /fetch</code> on port 8001. It enforces
+    per-domain async locks, per-domain rate limits, a circuit breaker, and a 7-day disk
+    cache. Full detail on the <a href="gatekeeper.html">Gatekeeper page</a>.</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Coverage Matrix</a>
+    <a href="gatekeeper.html">Gatekeeper</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

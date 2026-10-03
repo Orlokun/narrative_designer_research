@@ -1,0 +1,11 @@
+# Normalize line endings: LF in repo, platform-native on checkout
+* text=auto eol=lf
+
+# Binaries — no line-ending conversion
+*.sqlite  binary
+*.gguf    binary
+*.safetensors binary
+*.bin     binary
+*.pdf     binary
+*.png     binary
+*.jpg     binary

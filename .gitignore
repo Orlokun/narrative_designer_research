@@ -1,0 +1,47 @@
+# Env
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Data (large / generated — never commit)
+data/archivo/
+data/chroma/
+data/datasets/
+data/logs/
+data/checkpoints/
+data/raw/
+data/gatekeeper_cache/
+data/missions.jsonl
+data/characters.jsonl
+data/places.geojson
+data/fetch_log.jsonl
+data/heatmap_*.svg
+
+# Model artifacts
+*.safetensors
+*.gguf
+*.bin
+adapter_config.json
+adapter_model.safetensors
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Preserve structure
+!data/**/.gitkeep

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Agents</div>
+  <h1>Agents</h1>
+  <p class="lede">Every agent in the system, its ID, its role, and its build status. Click
+    a <span class="badge real">Real</span> agent for its dedicated page. Stubs and
+    rebuild items are tracked on the <a href="roadmap.html">Roadmap</a>.</p>
+
+  <h2>Research Engine</h2>
+  <table>
+    <tr><th>Agent</th><th>ID</th><th>Status</th><th>Role</th></tr>
+    <tr><td><a href="agent-propositor.html">Propositor</a></td><td>RE-1</td><td><span class="badge real">Real</span></td><td>Gap detection, mission generation.</td></tr>
+    <tr><td><a href="gatekeeper.html">Gatekeeper</a></td><td>—</td><td><span class="badge real">Real</span></td><td>HTTP gateway: rate limits, circuit breaker, disk cache (:8001).</td></tr>
+    <tr><td>Chronicler</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: enrich docs with speech acts, characters, places.</td></tr>
+  </table>
+
+  <h2>Pipeline</h2>
+  <table>
+    <tr><th>Agent</th><th>ID</th><th>Status</th><th>Role</th></tr>
+    <tr><td><a href="agent-archivero.html">Archivero</a></td><td>Ag-1</td><td><span class="badge real">Real</span></td><td>Fetches documents for each mission.</td></tr>
+    <tr><td><a href="agent-verificator.html">Verificator</a></td><td>Ag-2</td><td><span class="badge real">Real</span></td><td>Quality-scores &amp; gates documents; hosts the Cleaner.</td></tr>
+    <tr><td><a href="agent-mapper.html">Mapper</a></td><td>Ag-3</td><td><span class="badge real">Real</span></td><td>Assigns verified docs to coverage-matrix cells (LLM).</td></tr>
+    <tr><td><a href="agent-location-manager.html">Location Manager</a></td><td>Ag-4</td><td><span class="badge real">Real</span></td><td>Extracts places where events happen (descriptions, appreciations, events, data); links + mines Wikidata/Wikipedia (GPS, architect); feeds location missions to the Propositor.</td></tr>
+    <tr><td><a href="agent-cast-manager.html">Cast Manager</a></td><td>Ag-7</td><td><span class="badge real">Real</span></td><td>Extracts people from verified+mapped docs (Gemma, <code>--no-llm</code> fallback); keeps per-character timelines + mentions; flags new characters <code>needs_research</code> for the Propositor.</td></tr>
+    <tr><td><a href="agent-cast-director.html">Cast Director</a></td><td>Ag-8</td><td><span class="badge real">Real</span></td><td>Extracts complex character information: relations, political affiliations, colleagues, enemies.</td></tr>
+    <tr><td><a href="agent-doc-curator.html">Document Curator</a></td><td>Ag-9</td><td><span class="badge real">Real</span></td><td>Tags verified+mapped docs with <strong>utility flags</strong> (good-for lenses + quality) into <code>doc_flags</code>; Gemma or a <code>--no-llm</code> keyword heuristic; surfaced as reader filters.</td></tr>
+    <tr><td>Canonicalizador</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: dedup, normalize encoding, enrich Dublin Core metadata.</td></tr>
+    <tr><td>Indexador</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: BGE-m3 embeddings + ChromaDB + FTS5 index for RAG.</td></tr>
+    <tr><td>Curador Floresiano</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: Floresian dialogue curation.</td></tr>
+    <tr><td>Diseñador Narrativo</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: narrative design.</td></tr>
+    <tr><td>Game Designer</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: game-rule design.</td></tr>
+    <tr><td>Level Designer</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: scenario/level design.</td></tr>
+    <tr><td>Validador Histórico</td><td>—</td><td><span class="badge stub">Stub</span></td><td>Intended: historical accuracy validation.</td></tr>
+  </table>
+
+  <h2>Runtime</h2>
+  <table>
+    <tr><th>Agent</th><th>Status</th><th>Role</th></tr>
+    <tr><td><a href="director.html">Director</a></td><td><span class="badge real">Real</span></td><td>Custom orchestrator: one WorldState flows through registered async nodes.</td></tr>
+    <tr><td>Event Generator</td><td><span class="badge stub">Stub</span></td><td>Intended: emit narrative events calibrated by tension/world state.</td></tr>
+    <tr><td>NPC Pool</td><td><span class="badge stub">Stub</span></td><td>Intended: manage NPC personas.</td></tr>
+    <tr><td>Ledger / Logger / Registrador</td><td><span class="badge stub">Stub</span></td><td>Intended: runtime bookkeeping &amp; event recording.</td></tr>
+  </table>
+
+  <h2>Analysis</h2>
+  <table>
+    <tr><th>Agent</th><th>Status</th><th>Role</th></tr>
+    <tr><td>Comparador</td><td><span class="badge stub">Stub</span></td><td>Intended: compare experiment conditions (baseline vs floresian).</td></tr>
+    <tr><td>Evaluador</td><td><span class="badge stub">Stub</span></td><td>Intended: evaluate model/dialogue outputs.</td></tr>
+  </table>
+
+  <div class="callout pending">
+    <span class="label">⚠ Rebuild</span>
+    <p>Several of these stubs were implemented during the lost 4 weeks. Once the exact set
+      is confirmed, their rows will move to <span class="badge planned">Rebuild</span> and
+      gain dedicated pages. Tracked on the <a href="roadmap.html">Roadmap</a>.</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="architecture.html">Architecture</a>
+    <a href="commands.html">Commands</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

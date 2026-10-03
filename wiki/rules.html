@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html" class="here">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Rules</div>
+  <h1>Rules &amp; Conventions</h1>
+  <p class="lede">The non-negotiable engineering principles and conventions for this
+    project. Every contribution — human or agent — follows these.</p>
+
+  <div class="callout protocol">
+    <span class="label">▶ The wiki protocol</span>
+    <p><strong>Read before, update after, commit after.</strong></p>
+    <ol>
+      <li>Before starting any task, read this page and the wiki page(s) for the area you
+        will touch (e.g. <a href="agent-mapper.html">Mapper</a> before editing the mapper).</li>
+      <li>After finishing, update those pages so they match the new reality. The wiki is
+        the source of truth; stale documentation is a bug.</li>
+      <li>When you add or change an agent, table, command, or convention, update both the
+        specific page and any index that lists it (<a href="agents.html">Agents</a>,
+        <a href="commands.html">Commands</a>, <a href="data-model.html">Data Model</a>).</li>
+      <li><strong>Commit the change (and its wiki update) before moving on</strong> — see
+        <a href="#git">Git</a> below. A task isn't done until it's committed.</li>
+    </ol>
+  </div>
+
+  <h2>Test-Driven Development (TDD)</h2>
+  <ul>
+    <li>Write tests first, then implement. Every new function or class has corresponding
+      tests in <code>tests/</code>.</li>
+    <li>Tests run <strong>fully offline</strong> — mock all HTTP and LLM calls
+      (<code>respx</code> for outbound HTTP; httpx <code>ASGITransport</code> for in-process
+      FastAPI; no live Ollama).</li>
+    <li>Run the full suite with <code>uv run pytest -v</code> before committing.</li>
+  </ul>
+
+  <h2>Object-Oriented Programming (OOP)</h2>
+  <ul>
+    <li>Business logic lives in classes. Pure module-level functions are reserved for
+      stateless utilities (e.g. <code>score_document</code>, <code>parse_llm_response</code>).</li>
+    <li>New agents follow the existing pattern: a class for the lifecycle (e.g.
+      <code>Mapper</code>), <code>main()</code> as the CLI entry point, pure functions for
+      stateless logic.</li>
+  </ul>
+
+  <h2>Human-Readable Code</h2>
+  <ul>
+    <li>Descriptive names: <code>fetch_unscored_documents</code>, not <code>_fetch_docs</code>.</li>
+    <li>Short, focused methods — one responsibility, &lt; 30 lines as a guide.</li>
+    <li>No clever one-liners; prefer explicit over implicit.</li>
+    <li>Avoid abbreviations unless domain-standard (e.g. <code>doc_id</code>, <code>iso</code>).</li>
+  </ul>
+
+  <h2>Documentation</h2>
+  <ul>
+    <li>Every public class and public method has a docstring.</li>
+    <li>Class docstring: what it does and its role in the pipeline.</li>
+    <li>Method docstring: what it does, what it returns, and any side effects.</li>
+    <li>And — per the protocol above — the relevant wiki page is updated too.</li>
+  </ul>
+
+  <h2>Key conventions</h2>
+  <table>
+    <tr><th>Topic</th><th>Rule</th></tr>
+    <tr><td>Config</td><td>Always <code>from lib.config import settings</code>; never read env vars directly.</td></tr>
+    <tr><td>Shared types</td><td>Use Pydantic models from <code>lib/schemas.py</code> across agent boundaries, not raw dicts.</td></tr>
+    <tr><td>Logging</td><td><code>get_logger("component_name")</code> from <code>lib.logging_setup</code>; call <code>configure_logging()</code> once at process start.</td></tr>
+    <tr><td>Tests</td><td>Fully offline. No Ollama, no live HTTP.</td></tr>
+    <tr><td>Dev deps</td><td><code>[dependency-groups] dev</code> in <code>pyproject.toml</code> (PEP 735); <code>uv sync</code> installs it.</td></tr>
+    <tr><td>New agents</td><td>Pure functions for logic, one class for the cycle, a <code>main()</code> for CLI.</td></tr>
+    <tr><td>Source of truth</td><td>SQLite (<code>data/archivo/archivo.sqlite</code>) for data; this wiki for design. JSON exports are derived views — never inputs.</td></tr>
+  </table>
+
+  <h2 id="git">Git — commit after every relevant change</h2>
+  <p><strong>Committing is part of finishing a task, not an afterthought.</strong> The moment
+    a change is complete and its wiki page is updated, commit it — then push so the remote is
+    a real backup.</p>
+  <ul>
+    <li><strong>Commit after each relevant change</strong> — a working feature, a fix, or a
+      doc/wiki update — with a clear message. Don't let uncommitted work pile up.</li>
+    <li><strong>Push regularly.</strong> The 4-week loss happened because work lived only
+      locally and was never pushed. The remote is the backup.</li>
+    <li>Branch off <code>main</code> before committing if you're on the default branch.</li>
+    <li>Bundle the code change and its wiki update in the same commit so they never drift.</li>
+  </ul>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="commands.html">Commands</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

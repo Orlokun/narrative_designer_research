@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cast Director — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444; --blue: #60a5fa;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; display: flex; flex-direction: column; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-shrink: 0; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 7px 16px; border-bottom: 1px solid var(--border); font-size: 10px; color: var(--text-mid); }
+.stats { color: var(--text); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { display: flex; align-items: center; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text-mid); font-family: var(--font); font-size: 9px; padding: 2px 7px; border-radius: 10px; cursor: pointer; letter-spacing: .3px; }
+.chip i { width: 9px; height: 9px; border-radius: 50%; }
+.chip.off { opacity: .35; text-decoration: line-through; }
+.conf-ctl { display: flex; align-items: center; gap: 6px; }
+.conf-ctl input { accent-color: var(--accent); width: 90px; }
+.hint { color: var(--text-dim); }
+.graph-wrap { flex: 1; overflow: hidden; position: relative; }
+#graph { width: 100%; height: 100%; display: block; }
+#graph text { font-family: var(--font); fill: var(--text-mid); pointer-events: none; }
+#graph .node { cursor: pointer; }
+#graph .node:hover circle { stroke: var(--accent); stroke-width: 2; }
+#graph .hit { cursor: pointer; }
+.empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+/* Edge detail panel */
+.edge-panel { position: absolute; left: 12px; bottom: 12px; width: 340px; max-width: calc(100% - 24px); background: var(--panel); border: 1px solid var(--border-hi, #333); border-left: 2px solid var(--accent); border-radius: 3px; padding: 10px 12px; font-size: 10px; box-shadow: 0 4px 18px rgba(0,0,0,.5); display: none; }
+.edge-panel.show { display: block; }
+.edge-panel .close { position: absolute; top: 6px; right: 8px; color: var(--text-dim); cursor: pointer; font-size: 12px; }
+.edge-panel .ep-kind { font-size: 8px; text-transform: uppercase; letter-spacing: .6px; padding: 1px 6px; border: 1px solid; border-radius: 2px; }
+.edge-panel .ep-pair { display: flex; align-items: center; gap: 6px; margin: 8px 0 6px; flex-wrap: wrap; }
+.edge-panel .ep-arrow { color: var(--text-dim); }
+.edge-panel .ep-conf { color: var(--text-dim); margin-top: 4px; }
+.edge-panel .ep-desc { color: var(--text); line-height: 1.6; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
+.edge-panel .ep-prov { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.clink { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.clink:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.plink { color: var(--blue); text-decoration: none; font-size: 10px; }
+.plink:hover { text-decoration: underline; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-8 CAST DIRECTOR</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="wrap">
+  <div class="toolbar">
+    <span class="stats" id="graph-stats">—</span>
+    <div class="chips" id="chips"></div>
+    <div class="conf-ctl">
+      confianza ≥ <span id="conf-val">0%</span>
+      <input type="range" id="conf" min="0" max="100" value="0" step="1">
+    </div>
+    <span class="hint">Clic en una arista → detalle · clic en un nodo → ficha · arrastra para reacomodar</span>
+  </div>
+  <div class="graph-wrap">
+    <svg id="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="edge-panel" id="edge-panel"></div>
+    <div class="empty" id="empty">Cargando…</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+
+const REL_LABEL = {
+  familia: 'Familia', aliado: 'Aliado', colega: 'Colega', rival: 'Rival',
+  enemigo: 'Enemigo', afiliacion: 'Afiliación', contraparte: 'Contraparte',
+  superior: 'Superior', mentor: 'Mentor', otro: 'Otro',
+};
+const REL_COLOR = {
+  familia: '#60a5fa', aliado: '#22c55e', colega: '#f59e0b', rival: '#eab308',
+  enemigo: '#ef4444', afiliacion: '#a78bfa', contraparte: '#f472b6',
+  superior: '#888', mentor: '#22d3ee', otro: '#5a5a5a',
+};
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function relColor(k) { return REL_COLOR[k] || REL_COLOR.otro; }
+function relLabel(k) { return REL_LABEL[k] || k; }
+
+// Plain-text label shown on hover over an edge (native SVG <title> tooltip).
+function edgeTooltip(e) {
+  const arrow = e.directed ? '→' : '↔';
+  let t = `${e.s.name} ${arrow} ${e.t.name} · ${relLabel(e.kind)}`;
+  if (e.confidence != null) t += ` (${Math.round(e.confidence * 100)}%)`;
+  if (e.description) t += `\n${e.description}`;
+  return t;
+}
+
+let nodes = [], edges = [], byId = {}, sim = null, drag = null, selected = null;
+const activeKinds = new Set();   // empty until first render (then all kinds)
+let minConf = 0;
+
+async function load() {
+  const r = await fetch('/api/cast/graph');
+  if (!r.ok) return;
+  const d = await r.json();
+  if (!d.available || !d.nodes.length) {
+    $('empty').textContent = d.available
+      ? 'Sin relaciones aún — ejecuta el cast-director.'
+      : 'Sin base de datos — ejecuta el pipeline primero.';
+    return;
+  }
+  $('empty').style.display = 'none';
+  $('graph-stats').textContent = `${d.nodes.length} personajes · ${d.edges.length} relaciones`;
+  d.edges.forEach(e => activeKinds.add(e.kind));
+  renderChips(d.edges);
+  buildGraph(d.nodes, d.edges);
+  $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+}
+
+function renderChips(es) {
+  const kinds = [...new Set(es.map(e => e.kind))].sort();
+  $('chips').innerHTML = kinds.map(k =>
+    `<button class="chip" data-kind="${k}"><i style="background:${relColor(k)}"></i>${esc(relLabel(k))}</button>`
+  ).join('');
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const k = chip.dataset.kind;
+      if (activeKinds.has(k)) { activeKinds.delete(k); chip.classList.add('off'); }
+      else { activeKinds.add(k); chip.classList.remove('off'); }
+      applyFilters();
+    });
+  });
+}
+
+function buildGraph(rawNodes, rawEdges) {
+  const svg = $('graph');
+  const W = svg.clientWidth || 900, H = svg.clientHeight || 600;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = '';
+
+  // Arrowhead markers, one per relation colour (for directed edges).
+  const defs = svgEl('defs', {}, svg);
+  [...new Set(rawEdges.map(e => e.kind))].forEach(k => {
+    const m = svgEl('marker', {
+      id: `arrow-${k}`, viewBox: '0 0 10 10', refX: '9', refY: '5',
+      markerWidth: '6', markerHeight: '6', orient: 'auto-start-reverse',
+    }, defs);
+    svgEl('path', { d: 'M0,0 L10,5 L0,10 z', fill: relColor(k) }, m);
+  });
+
+  // Seed positions on a circle (deterministic — no Math.random).
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.38;
+  nodes = rawNodes.map((n, i) => {
+    const a = (i / rawNodes.length) * 2 * Math.PI;
+    return { ...n, x: cx + R * Math.cos(a), y: cy + R * Math.sin(a), vx: 0, vy: 0 };
+  });
+  byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  edges = rawEdges.map(e => ({ ...e, s: byId[e.source], t: byId[e.target] })).filter(e => e.s && e.t);
+
+  const gEdges = svgEl('g', {}, svg);
+  const gHits = svgEl('g', {}, svg);
+  const gNodes = svgEl('g', {}, svg);
+
+  edges.forEach(e => {
+    const col = relColor(e.kind);
+    e.line = svgEl('line', {
+      stroke: col,
+      'stroke-width': (0.6 + (e.confidence || 0) * 2.2).toFixed(2),
+      'stroke-opacity': (0.2 + (e.confidence || 0) * 0.7).toFixed(2),
+    }, gEdges);
+    if (e.directed) e.line.setAttribute('marker-end', `url(#arrow-${e.kind})`);
+    // Invisible fat line makes the thin edge easy to click/hover.
+    e.hit = svgEl('line', { class: 'hit', stroke: 'transparent', 'stroke-width': 12 }, gHits);
+    e.hit.addEventListener('click', () => selectEdge(e));
+    // Hover label: what relates the two characters (kind + description).
+    const title = document.createElementNS(NS, 'title');
+    title.textContent = edgeTooltip(e);
+    e.hit.appendChild(title);
+  });
+
+  const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
+  nodes.forEach(n => {
+    n.r = 4 + 8 * Math.sqrt(n.degree / maxDeg);
+    const g = svgEl('g', { class: 'node' }, gNodes);
+    g.addEventListener('click', () => {
+      if (!n._moved) location.href = `/cast-manager?char=${encodeURIComponent(n.id)}`;
+    });
+    g.addEventListener('pointerdown', ev => startDrag(ev, n));
+    n.circle = svgEl('circle', { r: n.r, fill: 'var(--accent)', 'fill-opacity': 0.85,
+      stroke: '#000', 'stroke-width': 0.5 }, g);
+    const title = document.createElementNS(NS, 'title');
+    title.textContent = `${n.name} · ${n.degree} relación${n.degree === 1 ? '' : 'es'}`;
+    n.circle.appendChild(title);
+    if (n.degree >= 2 || nodes.length <= 25) {
+      n.label = svgEl('text', { 'font-size': 8.5, 'text-anchor': 'middle' }, g);
+      n.label.textContent = n.name.length > 22 ? n.name.slice(0, 21) + '…' : n.name;
+    }
+    n.g = g;
+  });
+
+  applyFilters();
+  runSim(W, H);
+}
+
+function edgeVisible(e) {
+  return activeKinds.has(e.kind) && (e.confidence || 0) >= minConf;
+}
+
+function applyFilters() {
+  const liveDeg = {};
+  edges.forEach(e => {
+    const vis = edgeVisible(e);
+    const disp = vis ? '' : 'none';
+    e.line.style.display = disp;
+    e.hit.style.display = disp;
+    if (vis) { liveDeg[e.s.id] = (liveDeg[e.s.id] || 0) + 1; liveDeg[e.t.id] = (liveDeg[e.t.id] || 0) + 1; }
+  });
+  // Dim nodes that have no visible edge.
+  nodes.forEach(n => { n.g.style.opacity = liveDeg[n.id] ? '1' : '0.2'; });
+  if (selected && !edgeVisible(selected)) closePanel();
+}
+
+function selectEdge(e) {
+  if (selected && selected.line) selected.line.setAttribute('stroke-width',
+    (0.6 + (selected.confidence || 0) * 2.2).toFixed(2));
+  selected = e;
+  e.line.setAttribute('stroke-width', (2.4 + (e.confidence || 0) * 2.2).toFixed(2));
+
+  const arrow = e.directed ? '→' : '↔';
+  const conf = Math.round((e.confidence || 0) * 100);
+  const prov = (e.provenance || []);
+  const provHtml = prov.length
+    ? prov.map((doc, i) => `<a class="plink" href="/archivero?doc=${encodeURIComponent(doc)}" title="Documento fuente">¶ ${esc(doc.slice(0, 8))}</a>`).join('')
+    : '<span class="hint">sin documentos</span>';
+  $('edge-panel').innerHTML = `
+    <span class="close" onclick="closePanel()">✕</span>
+    <span class="ep-kind" style="color:${relColor(e.kind)};border-color:${relColor(e.kind)}">${esc(relLabel(e.kind))}</span>
+    <div class="ep-pair">
+      <a class="clink" href="/cast-manager?char=${encodeURIComponent(e.s.id)}">${esc(e.s.name)}</a>
+      <span class="ep-arrow">${arrow}</span>
+      <a class="clink" href="/cast-manager?char=${encodeURIComponent(e.t.id)}">${esc(e.t.name)}</a>
+    </div>
+    <div class="ep-conf">confianza ${conf}% · ${prov.length} documento${prov.length === 1 ? '' : 's'}</div>
+    ${e.description ? `<div class="ep-desc">${esc(e.description)}</div>` : ''}
+    <div class="ep-prov">${provHtml}</div>`;
+  $('edge-panel').classList.add('show');
+}
+
+function closePanel() {
+  if (selected && selected.line) selected.line.setAttribute('stroke-width',
+    (0.6 + (selected.confidence || 0) * 2.2).toFixed(2));
+  selected = null;
+  $('edge-panel').classList.remove('show');
+}
+
+$('conf').addEventListener('input', e => {
+  minConf = (+e.target.value) / 100;
+  $('conf-val').textContent = e.target.value + '%';
+  applyFilters();
+});
+
+function runSim(W, H) {
+  if (sim) cancelAnimationFrame(sim);
+  let ticks = 0;
+  const cx = W / 2, cy = H / 2;
+  function tick() {
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let dist2 = dx * dx + dy * dy || 0.01;
+        const f = 2600 / dist2;
+        const d = Math.sqrt(dist2);
+        const ux = dx / d, uy = dy / d;
+        a.vx += ux * f; a.vy += uy * f;
+        b.vx -= ux * f; b.vy -= uy * f;
+      }
+    }
+    edges.forEach(e => {
+      let dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+      const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+      const f = (d - 90) * 0.02;
+      const ux = dx / d, uy = dy / d;
+      e.s.vx += ux * f; e.s.vy += uy * f;
+      e.t.vx -= ux * f; e.t.vy -= uy * f;
+    });
+    nodes.forEach(n => {
+      if (n === drag) return;
+      n.vx += (cx - n.x) * 0.005;
+      n.vy += (cy - n.y) * 0.005;
+      n.vx *= 0.85; n.vy *= 0.85;
+      n.x += Math.max(-12, Math.min(12, n.vx));
+      n.y += Math.max(-12, Math.min(12, n.vy));
+      n.x = Math.max(n.r, Math.min(W - n.r, n.x));
+      n.y = Math.max(n.r + 10, Math.min(H - n.r, n.y));
+    });
+    paint();
+    if (++ticks < 240 || drag) sim = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function paint() {
+  edges.forEach(e => {
+    // Trim the segment to the node boundaries; leave a gap at the target for the arrow.
+    let dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.01;
+    const ux = dx / d, uy = dy / d;
+    const gap = e.directed ? 6 : 1.5;
+    const x1 = e.s.x + ux * e.s.r, y1 = e.s.y + uy * e.s.r;
+    const x2 = e.t.x - ux * (e.t.r + gap), y2 = e.t.y - uy * (e.t.r + gap);
+    for (const ln of [e.line, e.hit]) {
+      ln.setAttribute('x1', x1.toFixed(1)); ln.setAttribute('y1', y1.toFixed(1));
+      ln.setAttribute('x2', x2.toFixed(1)); ln.setAttribute('y2', y2.toFixed(1));
+    }
+  });
+  nodes.forEach(n => {
+    n.g.setAttribute('transform', `translate(${n.x.toFixed(1)}, ${n.y.toFixed(1)})`);
+    if (n.label) n.label.setAttribute('y', (-n.r - 3).toFixed(1));
+  });
+}
+
+function startDrag(ev, n) {
+  ev.preventDefault();
+  drag = n; n._moved = false;
+  const svg = $('graph');
+  const pt = svg.createSVGPoint();
+  const move = e => {
+    pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    n.x = p.x; n.y = p.y; n.vx = n.vy = 0; n._moved = true;
+    paint();
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    drag = null;
+    runSim($('graph').clientWidth || 900, $('graph').clientHeight || 600);
+    setTimeout(() => { n._moved = false; }, 50);
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+load();
+</script>
+</body>
+</html>

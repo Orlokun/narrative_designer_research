@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commands — Cybersyn Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Cybersyn · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html" class="here">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Commands</div>
+  <h1>Commands</h1>
+  <p class="lede">CLI entry points and every Makefile target. All pipeline agents are CLI
+    tools; only Gatekeeper and Admin are long-running.</p>
+
+  <h2>Setup &amp; quality</h2>
+  <pre>uv sync                  # install all deps (including dev group)
+uv run pytest -v         # full test suite (offline)
+uv run pytest tests/test_X.py::fn   # single test
+uv run ruff check .      # lint
+uv run ruff format .     # format</pre>
+
+  <h2>CLI entry points (<code>pyproject.toml [project.scripts]</code>)</h2>
+  <table>
+    <tr><th>Command</th><th>Module</th><th>Role</th></tr>
+    <tr><td><code>gatekeeper</code></td><td><code>research_engine.gatekeeper.app:main</code></td><td>HTTP proxy on :8001 (keep running).</td></tr>
+    <tr><td><code>admin</code></td><td><code>admin.app:main</code></td><td>Dashboard on :8080 (keep running).</td></tr>
+    <tr><td><code>propositor</code></td><td><code>research_engine.propositor:main</code></td><td>Gap detection + entity (character-research) mission generation.</td></tr>
+    <tr><td><code>archivero</code></td><td><code>pipeline.archivero:main</code></td><td>Fetch documents; <code>run</code>/<code>status</code>/<code>export</code>.</td></tr>
+    <tr><td><code>verificator</code></td><td><code>pipeline.verificator:main</code></td><td>Score/gate docs; <code>run</code>/<code>status</code>/<code>clean</code>.</td></tr>
+    <tr><td><code>mapper</code></td><td><code>pipeline.mapper:main</code></td><td>Map docs to matrix cells; <code>run</code>/<code>status</code>.</td></tr>
+    <tr><td><code>cast-manager</code></td><td><code>pipeline.cast_manager:main</code></td><td>Extract people from verified+mapped docs; <code>run</code> (<code>--batch</code>/<code>--all</code>/<code>--no-llm</code>)/<code>merge</code> (unify duplicate characters; also runs after every cycle)/<code>enrich</code> (Wikidata + Wikipedia links)/<code>politics</code> (political compass)/<code>clean</code> (remove implausible characters; dry-run unless <code>--apply</code>)/<code>status</code>.</td></tr>
+    <tr><td><code>cast-director</code></td><td><code>pipeline.cast_director:main</code></td><td>Extract character relations from verified+mapped docs; <code>run</code> (<code>--batch</code>/<code>--all</code>/<code>--no-llm</code>)/<code>status</code>.</td></tr>
+    <tr><td><code>doc-curator</code></td><td><code>pipeline.doc_curator:main</code></td><td>Assign utility flags to verified+mapped docs (Ag-9); <code>run</code> (<code>--batch</code>/<code>--all</code>/<code>--re-curate</code>/<code>--no-llm</code>)/<code>status</code>/<code>clear</code> (dry-run unless <code>--apply</code>).</td></tr>
+    <tr><td><code>pipeline-run</code></td><td><code>lib.run_tracker:main</code></td><td>Bracket a full run: <code>start</code>/<code>finish</code> (reads <code>$CYBERSYN_RUN_ID</code>).</td></tr>
+  </table>
+  <p><strong>Run tracking:</strong> the <code>pipeline</code>/<code>drain</code> Makefile targets
+    mint one <code>CYBERSYN_RUN_ID</code> and export it so every agent stamps its stage timing +
+    counts against it (Admin <a href="admin.html">Performance/Results</a>). Setting the env var
+    is optional for standalone agent runs — when unset, stage recording is skipped. See
+    <a href="data-model.html#run-tracking">Data Model → run tracking</a>.</p>
+
+  <h2>Makefile targets</h2>
+  <h3>Long-running services</h3>
+  <table>
+    <tr><th>Target</th><th>Runs</th></tr>
+    <tr><td><code>make gatekeeper</code></td><td>Gatekeeper HTTP proxy on :8001.</td></tr>
+    <tr><td><code>make admin</code></td><td>Admin dashboard on :8080.</td></tr>
+  </table>
+
+  <h3>Pipeline (one-shot agents)</h3>
+  <table>
+    <tr><th>Target</th><th>Runs</th></tr>
+    <tr><td><code>make propositor</code></td><td><code>propositor run --limit 100</code> — generate 100 missions.</td></tr>
+    <tr><td><code>make propositor-status</code></td><td>Show mission-queue state.</td></tr>
+    <tr><td><code>make archivero</code></td><td><code>archivero run --batch 50 --missions 200</code>.</td></tr>
+    <tr><td><code>make archivero-status</code></td><td>Document fetch stats.</td></tr>
+    <tr><td><code>make archivero-export</code></td><td>Export documents to <code>data/documents.json</code>.</td></tr>
+    <tr><td><code>make verificator</code></td><td><code>verificator run --batch 200</code>.</td></tr>
+    <tr><td><code>make verificator-status</code></td><td>Verification stats.</td></tr>
+    <tr><td><code>make verify-queue</code></td><td>Loop verificator until the queue is drained.</td></tr>
+    <tr><td><code>make cleaner</code></td><td><code>verificator clean</code> — delete rejected docs.</td></tr>
+    <tr><td><code>make cleaner-dry-run</code></td><td>Preview rejections (no delete).</td></tr>
+    <tr><td><code>make mapper</code></td><td><code>mapper run --batch 50</code>.</td></tr>
+    <tr><td><code>make mapper-status</code></td><td>Mapping stats.</td></tr>
+    <tr><td><code>make mapper-all</code></td><td><code>mapper run --all --batch 100</code> — (re)map all verified docs.</td></tr>
+    <tr><td><code>make remap-all</code></td><td><code>mapper run --remap --batch 100</code> — re-classify already-mapped docs.</td></tr>
+    <tr><td><code>make cleaner-mapper</code></td><td>Clean then map in one step.</td></tr>
+    <tr><td><code>make cast-manager</code></td><td><code>cast-manager run --batch 50</code> — extract people from verified+mapped docs.</td></tr>
+    <tr><td><code>make cast-manager-status</code></td><td>Cast stats (characters, mentions, facts, pending).</td></tr>
+    <tr><td><code>make cast-manager-all</code></td><td><code>cast-manager run --all --batch 100</code> — mine all eligible docs.</td></tr>
+    <tr><td><code>make cast-remine</code></td><td><code>cast-manager run --re-extract --batch 100</code> — re-mine already-processed docs (applies the improved extraction). Uses the LLM path; don't add <code>--no-llm</code> on real data.</td></tr>
+    <tr><td><code>make cast-enrich</code></td><td><code>cast-manager enrich --limit 200</code> — link characters to Wikidata + Wikipedia. Requires <code>make gatekeeper</code> running.</td></tr>
+    <tr><td><code>make cast-analyze</code></td><td><code>cast-manager analyze --limit 50</code> — mine linked Wikidata claims + Wikipedia articles into profiles/timelines, stamping the <code>*_analyzed_at</code> completeness gates. <code>--no-llm</code> = Wikidata only. Requires <code>make gatekeeper</code> (+ <code>ollama serve</code> for the article analysis).</td></tr>
+    <tr><td><code>make cast-score</code></td><td><code>cast-manager score</code> — recompute every character's completeness under the current constants (run after any metric change), persisting breakdowns and re-queuing deflated characters.</td></tr>
+    <tr><td><code>make location-manager</code></td><td><code>location-manager run --batch 50</code> — extract places (descriptions, appreciations, events, data) from verified+mapped docs. <code>location-manager-status</code> prints counts.</td></tr>
+    <tr><td><code>make location-enrich</code></td><td><code>location-manager enrich --limit 100</code> — link places to Wikidata + Wikipedia. Requires <code>make gatekeeper</code>.</td></tr>
+    <tr><td><code>make location-analyze</code></td><td><code>location-manager analyze --limit 30</code> — mine linked places: GPS coordinates (P625), inception, architect, territory + the Wikipedia article (description, trivia). <code>--no-llm</code> = Wikidata only.</td></tr>
+    <tr><td><code>make location-score</code></td><td><code>location-manager score</code> — bulk re-score all locations.</td></tr>
+    <tr><td><code>make cast-politics</code></td><td><code>cast-manager politics --limit 200</code> — place characters on the political compass. Requires <code>ollama serve</code>.</td></tr>
+    <tr><td><code>make cast-clean</code> / <code>cast-clean-apply</code></td><td><code>cast-manager clean [--apply]</code> — list (dry-run) or delete implausible characters (boilerplate, titles, months, orgs, function words). Deterministic, no LLM.</td></tr>
+    <tr><td><code>make curate</code></td><td><code>doc-curator run --batch 50</code> — assign utility flags to verified+mapped docs (Ag-9).</td></tr>
+    <tr><td><code>make curate-all</code></td><td><code>doc-curator run --all --batch 100</code> — curate every eligible doc.</td></tr>
+    <tr><td><code>make curate-status</code></td><td>Curation stats (curated docs, flags per slug).</td></tr>
+    <tr><td><code>make curate-recurate</code></td><td><code>doc-curator run --re-curate --batch 100</code> — re-curate already-processed docs (applies an improved prompt). Uses the LLM path.</td></tr>
+  </table>
+
+  <h3>Full cycles</h3>
+  <table>
+    <tr><th>Target</th><th>Runs</th></tr>
+    <tr><td><code>make pipeline</code></td><td>One full cycle: propositor → archivero → verificator → <strong>cleaner</strong> → mapper → cast-manager → cast-enrich (50) → cast-analyze (10) → cast-director → location-manager → location-enrich (50) → location-analyze (10) → doc-curator → export.</td></tr>
+    <tr><td><code>make pipeline-loop</code></td><td>Continuous cycles (new missions when queue &lt; 50; 30s delay). Same chain as <code>make pipeline</code>.</td></tr>
+    <tr><td><code>make pipeline-characters</code></td><td><strong>Character-focused cycle</strong> (<code>pipeline_runs.trigger = characters</code>): <code>propositor run --focus characters --entity-limit 30</code> mints entity missions ONLY — the least-complete characters (&lt; 0.85) first — then archivero → verificator → cleaner → mapper → cast-manager → enrich (100) → analyze (30) → <strong>score</strong> → cast-director → export.</td></tr>
+    <tr><td><code>make drain</code></td><td>archivero → verificator → cleaner → mapper → cast-manager → cast-director → doc-curator → export (no new missions).</td></tr>
+    <tr><td><code>make drain-loop</code></td><td>Continuous drain (30s delay).</td></tr>
+  </table>
+
+  <h3>Maintenance &amp; Docker</h3>
+  <table>
+    <tr><th>Target</th><th>Runs</th></tr>
+    <tr><td><code>make reset</code></td><td><code>scripts/reset_data.py</code> (needs <code>CONFIRM=yes</code>) — wipe SQLite, logs, Gatekeeper cache; keep <code>.env</code> and code.</td></tr>
+    <tr><td><code>make test</code> / <code>test-cov</code></td><td>Run tests / coverage report.</td></tr>
+    <tr><td><code>make lint</code> / <code>fmt</code></td><td>Ruff lint / format.</td></tr>
+    <tr><td><code>make docker-build / up / down / logs / ps</code></td><td>Docker Compose lifecycle.</td></tr>
+  </table>
+
+  <h2>Useful one-offs</h2>
+  <pre>uv run archivero export                         # write data/documents.json
+uv run verificator status                       # verified / pending counts
+uv run propositor run --retry-failed --no-llm --limit 100   # retry failed missions
+uv run propositor run --entity-limit 0                      # gap missions only (skip character research)
+uv run propositor run --focus characters --entity-limit 30  # entity missions only, thinnest characters first
+uv run propositor run --focus cells                         # gap missions only (leaves the research queue queued)</pre>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="admin.html">Admin Dashboard</a>
+  </div>
+</main>
+
+<footer class="foot">Cybersyn Research Pipeline · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

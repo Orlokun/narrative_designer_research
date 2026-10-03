@@ -1,0 +1,517 @@
+slug: cybersyn
+title: Project Cybersyn — Allende-era Chile
+description: 'Multi-agent research grid for a game-based simulation of Project Cybersyn: Chile under the
+  Unidad Popular government, October 1969 – September 1973.'
+language: es
+region: Chile
+period:
+  start_month: 1969-10
+  end_month: 1973-09
+  fallback_month: 1971-06
+themes:
+- id: 1
+  name: Política Nacional
+  weight: 0.8
+  tier: alta
+  description: government ministries, parliament, political parties, civil unrest
+  search_terms:
+  - Allende gobierno popular decreto
+  - Unidad Popular política nacional
+  - CORFO decisión gobierno popular
+  - acuerdo consejo ministros Chile
+  - Ministerio del Interior decreto
+  - congreso nacional Chile proyecto
+  - comisión reforma constitucional Chile
+  - Salvador Allende discurso
+  - Tomic Alessandri candidato elección
+  - veto presidencial proyecto
+  - sesión senado diputados nacionalización
+  - junta gobierno nacional
+  - elección constituyentes 1970
+  - programa gobierno popular Allende
+  - derecho propiedad reforma agraria
+  - asamblea popular cabildos
+- id: 2
+  name: Salud
+  weight: 0.5
+  tier: media
+  description: healthcare, public health policy, medical services
+  search_terms:
+  - sistema nacional salud SNS Chile
+  - medicina comunitaria Allende
+  - salud pública política sanitaria Chile
+  - consultorios medicina popular
+  - Ministerio Salud decreto programa
+  - SNSS sistema nacional servicios sanitarios
+  - campaña vacunación preventiva
+  - maternidad infantil mortalidad
+  - médicos gremio colegio profesional
+  - medicinas fármacos importación
+  - hospitales públicos Chile ampliación
+  - salud campesina rural marginal
+  - epidemiología enfermedades transmisibles
+  - nutrición programas alimentarios
+  - higiene ocupacional fábricas minería
+  - sanidad ambiental agua potable
+- id: 3
+  name: Economía Nacional
+  weight: 1.0
+  tier: critica
+  description: GDP, inflation, economic policy, fiscal matters
+  search_terms:
+  - inflación Chile escudo desabastecimiento
+  - DIRINCO control precios Chile
+  - abastecimiento JAP Chile
+  - economía APS empresa estatal
+  - Banco Central Chile Memoria informe
+  - balanza comercio exportaciones
+  - presupuesto nacional fiscal ingresos
+  - crisis económica recesión demanda
+  - austeridad medidas monetarias crediticias
+  - reforma tributaria impuestos
+  - deuda pública empréstitos internacionales
+  - producto interno bruto PIB
+  - sector público privado integración
+  - precios mayorista minorista índice
+  - salarios reajuste costo vida
+  - comercio interior distribución minorista
+- id: 4
+  name: Industria Nacional
+  weight: 1.0
+  tier: critica
+  description: state industries, nationalization, CORFO, production
+  search_terms:
+  - industria requisada intervenida CORFO
+  - Área Propiedad Social APS fábrica
+  - empresa estatal CORFO intervención
+  - trabajadores fábrica ocupación Chile
+  - sindicato industrial registro
+  - junta sindical coordinadora
+  - ocupación textil minería
+  - producción industrial manufactura
+  - fábrica metalúrgica producción
+  - obreros empresa
+  - asamblea de trabajadores
+  - comités de control obrero
+  - democratización empresarial
+  - nacionalización industria estratégica
+  - planificación productiva ODEPLAN
+  - fondo solidaridad trabajadores
+  - cámara nacional manufactura
+- id: 5
+  name: Industria Privada
+  weight: 0.8
+  tier: alta
+  description: private enterprises, commerce, business
+  search_terms:
+  - paro gremial patronal Chile
+  - CPC SOFOFA lockout Chile
+  - huelga industriales propietarios Chile
+  - cámara comercio gremio boicot
+  - confederación producción comercio
+  - sociedad industrial manufacturera
+  - gremio empresa privada decisión
+  - paro patronal medida presión
+  - boicot sabotaje empresarial
+  - fuga capitales transferencias
+  - especulación precios
+  - mercado negro estraperl
+  - hoarding acaparamiento
+  - inversión privada contracción
+  - consorcio empresarial SOFOFA CPC
+  - asociación productores agrícolas
+- id: 6
+  name: Estados Unidos
+  weight: 0.8
+  tier: alta
+  description: US relations, CIA, ITT, economic blockade, US diplomacy
+  search_terms:
+  - Nixon bloqueo Chile créditos
+  - ITT CIA desestabilización Chile
+  - embargo financiero Chile imperialismo
+  - OPIC créditos bloqueados Chile
+  - ambassada estadounidense
+  - agencia para desarrollo internacional AID
+  - transnacionales cobre minería
+  - inversor norteamericano telegrama
+  - senador norteamericano declaración
+  - gobierno estados unidos política
+  - bloqueo invisible expoliación
+  - conspiración imperialista contrarrevolución
+  - corporación multinacional yankee
+  - dolar oro reservas internacionales
+  - crédito comercial financiero FMI Banco Mundial
+  - presión diplomática condena
+- id: 7
+  name: Unión Soviética
+  weight: 0.5
+  tier: media
+  description: Soviet relations, Cuba, communist support
+  search_terms:
+  - URSS Chile acuerdo comercial
+  - Cuba Chile solidaridad socialista
+  - COMECON intercambio Chile
+  - socialismo real apoyo Chile
+  - delegación soviética viaje
+  - comercio canje productos
+  - asistencia técnica maquinaria
+  - beca estudiante formación
+  - alianza países socialistas
+  - solidaridad internacional obrera
+  - revisión marxista teoría
+  - modelo soviético emulación
+  - partido comunista dirigencia
+  - radio Moscú transmisiones
+  - cooperación científica técnica
+  - relaciones diplomáticas consulado
+- id: 8
+  name: Política Internacional
+  weight: 0.5
+  tier: media
+  description: international relations beyond USSR/USA, trade, diplomacy
+  search_terms:
+  - Chile ONU UNCTAD Allende
+  - política exterior Allende no alineados
+  - relaciones diplomáticas Chile Cuba
+  - OLAS solidaridad internacional
+  - movimiento países no alineados
+  - congreso diputados americanos
+  - parlamento latinoamericano
+  - confraternidad pueblos socialistas
+  - país en vía desarrollo
+  - relaciones países vecinos Perú Argentina
+  - tratado comercio bilateral
+  - organización estados americanos OEA
+  - asamblea general naciones unidas
+  - declaración principios soberanía
+  - comisión derechos humanos condena
+  - tribunal justicia internacional
+- id: 9
+  name: Educación
+  weight: 0.5
+  tier: media
+  description: education policy, schools, universities, educational reform
+  search_terms:
+  - reforma universitaria Chile ENU
+  - educación nacional unificada
+  - USACH UTE reforma pedagógica
+  - consejo educación popular Chile
+  - Ministerio Educación decreto programa
+  - escuela básica enseñanza media
+  - universidad reforma cogobierno
+  - estudiantes movimiento político
+  - rector universidad elegido asamblea
+  - reforma curricular contenidos
+  - educación campesina alfabetización
+  - profesorado sindicato gremio
+  - colegios profesionales docente
+  - educación técnica vocacional
+  - biblioteca pública gratuita acceso
+  - producción libros Editorial Quimantú
+- id: 10
+  name: Ciencia y Tecnología
+  weight: 0.8
+  tier: alta
+  description: scientific research, technology, innovation
+  search_terms:
+  - CyberSyn cibernética CORFO Chile
+  - Stafford Beer Opsroom telex
+  - INTEC computadora BURROUGHS Cybernet
+  - Flores cibernética gestión
+  - ingeniería chilena innovación
+  - investigación científica CONICYT
+  - tecnología transferencia nacional
+  - automatización procesos industriales
+  - modelado sistémico economía
+  - computadora información datos
+  - laboratorio investigación desarrollo
+  - universidad ciencia tecnología
+  - profesor investigador proyecto
+  - patente invento registro
+  - industria tecnológica manufactura
+  - planificación científica nacional
+- id: 11
+  name: Transporte
+  weight: 1.0
+  tier: critica
+  description: transportation, ports, railways, aviation, trucks (1972 trucker strike)
+  search_terms:
+  - paro camioneros SUNAT Chile
+  - huelga transporte abastecimiento Chile
+  - flota camiones requisada Chile
+  - cordón logístico CORFO distribución
+  - Ministerio Transporte decreto
+  - empresa nacional camiones ENACAR
+  - ferrocarril vía marítima puerto
+  - aerolinea aviación civil
+  - carretera autopista pavimentación
+  - taxi colectivo transporte urbano
+  - sindicato choferes conductores
+  - paro nacional cierre ruta
+  - abastecimiento distribución alimentos
+  - transporte carbón combustible
+  - logística militar defensa
+  - empresa estatal transporte público
+- id: 12
+  name: Urbanismo y Megaproyectos
+  weight: 0.5
+  tier: media
+  description: urban planning, large construction, housing
+  search_terms:
+  - cordón industrial Santiago CORMU
+  - pobladores toma terrenos Santiago
+  - Opsroom ubicación Santiago
+  - planificación urbana Allende
+  - Corporación Mejoramiento Urbano CORMU
+  - vivienda construcción pobres
+  - campamento poblacional asentamiento
+  - toma de terrenos reforma agraria
+  - metro ferrocarril subterráneo
+  - plan regulador zona metropolitana
+  - barrio popular campamento marginal
+  - servicio agua potable alcantarillado
+  - electrificación rural zonas
+  - proyecto vial infraestructura
+  - urbanización loteamiento parcela
+  - equipamiento comunitario escuela
+- id: 13
+  name: Política Militar
+  weight: 0.8
+  tier: alta
+  description: military, armed forces, defense, coup 1973
+  search_terms:
+  - fuerzas armadas Chile Allende
+  - Prats comandante en jefe
+  - Tanquetazo Souper
+  - golpe militar 11 septiembre 1973
+  - Ministerio Defensa decreto
+  - general coronel oficial rango
+  - Academia guerra escuela militar
+  - servicio militar conscripción
+  - armamento defensa nacional
+  - estrategia militar doctrina
+  - junta de gobierno militar transitorio
+  - alzamiento insurrección pronunciamiento
+  - represión política orden público
+  - detención prisión campo concentración
+  - ley marcial estado sitio toque queda
+  - consejo guerra tribunal marcial
+- id: 14
+  name: Artes y Cultura
+  weight: 0.3
+  tier: baja
+  description: arts, literature, music, cultural events
+  search_terms:
+  - cultura Chile Allende teatro
+  - Nueva Canción Chilena Víctor Jara
+  - cine chileno 1970 1971
+  - Editorial Quimantú libros
+  - pintura escultura artes plásticas
+  - literato escritor poeta novelista
+  - folclore tradición popular
+  - banda sonora música popular
+  - festival canción intervalo
+  - banda rock música contemporánea
+  - danza teatro dramático
+  - exposición galería arte público
+  - acervo patrimonio cultural
+  - artesanía cerámica textiles
+  - bibliotecas culturales centros
+  - revista periódico diario publicación
+- id: 15
+  name: Deporte
+  weight: 0.3
+  tier: baja
+  description: sports, athletes, sports events
+  search_terms:
+  - fútbol Chile clasificación mundial
+  - deportes Chile gobierno popular
+  - Chile mundial 1974 clasificatoria
+  - estadio Chile deporte
+  - equipo nacional futbolista selección
+  - campeonato torneo liga profesional
+  - entrenador técnico fútbol
+  - atleta competencia olimpiada
+  - deporte recreación popular
+  - equipo pueblo barrio club
+  - asociación deportiva federación
+  - gimnasia natación boxeo
+  - deporte militar defensa
+  - masividad deporte participación
+- id: 16
+  name: Macroeconomía
+  weight: 1.0
+  tier: critica
+  description: overall economic indicators, monetary policy, banking
+  search_terms:
+  - balanza pagos Chile deuda externa
+  - reservas internacionales escudo dólar
+  - tipo cambio Chile inflación
+  - FMI Chile deuda negociación
+  - Banco Central Chile Memoria informe
+  - política monetaria crediticia
+  - banco privado estatal crédito
+  - tasa interés préstamo
+  - especulación cambio
+  - oro cobre mineral exportación
+  - modelo económico sistema
+  - crisis recesión depresión
+  - ingreso nacional producto
+  - consumo inversión ahorro
+  - sector externo comercio
+  - deuda consolidación pago
+  - hacienda pública presupuesto fiscal
+critical_months:
+- month_iso: 1971-07
+  event: Nacionalización del cobre
+  label: Cobre
+- month_iso: 1971-11
+  event: Primera visita Beer; Opsroom conceptualizado
+  label: Beer
+- month_iso: 1972-06
+  event: Crisis abastecimiento; JAP
+  label: JAP
+- month_iso: 1972-10
+  event: Paro de camioneros — CyberSyn en operación real
+  label: Paro
+- month_iso: 1973-06
+  event: Tanquetazo
+  label: Tanq.
+- month_iso: 1973-09
+  event: 11 de septiembre
+  label: 11-S
+source_tiers:
+  critica:
+  - archive.org
+  - openalex
+  - crossref
+  - wikisource_es
+  - foia_chile
+  - frus
+  - semantic_scholar
+  - chronicling_america
+  - marxists
+  - web_serp
+  alta:
+  - archive.org
+  - openalex
+  - crossref
+  - wikisource_es
+  - foia_chile
+  - semantic_scholar
+  - marxists
+  - wikipedia_es
+  media:
+  - archive.org
+  - openalex
+  - wikisource_es
+  - wikipedia_es
+  baja:
+  - openalex
+  - wikisource_es
+  - archive.org
+  - wikipedia_es
+entity:
+  nominal_theme_id: 1
+  nominal_month_iso: 1970-11
+  sources:
+  - wikipedia_es
+  - wikisource_es
+  - archive.org
+  - openalex
+  - marxists
+  query_suffix: Chile 1970 1973
+  context_suffix: Chile Unidad Popular
+  biography_suffix: biografía política Chile
+relevance:
+  domain: Chile under Salvador Allende, October 1969 – September 1973.
+  persona: You are a research archivist for a Digital Humanities project at Cambridge University studying
+    the Allende government in Chile (1969-1973) and Project CyberSyn.
+  relevant_topics:
+  - Allende government, Unidad Popular, CORFO, APS nationalisations
+  - Project CyberSyn, Stafford Beer, Opsroom, telex networks
+  - 'Chilean economy 1969-73: inflation, escudo, DIRINCO, JAP'
+  - 'US-Chile relations: Nixon, CIA, ITT, economic blockade'
+  - 'Military tensions: Prats, Tanquetazo, coup 11 Sep 1973'
+  - USSR/Cuba relations with Allende's Chile
+  zero_score_rules:
+  - Any document primarily about Chile AFTER 1973 (e.g. Pinochet era, 1980s, 1990s, 2000s, 2010s, 2020s)
+  - Chilean feminist movements 2006-2016 → 0.0
+  - Indigenous communities in modern Chile → 0.0
+  - Climate events in Chile 2015 → 0.0
+  - Chilean elections after 1973 → 0.0
+  - Any document not about Chile → 0.0
+  score_scale:
+  - 0.0 = wrong era, wrong country, or completely irrelevant
+  - 0.2 = mentions Chile but wrong time period or tangentially related
+  - 0.5 = Chilean history broadly in the 1960s-70s, adjacent topics
+  - 0.7 = directly about Allende's Chile 1969-1973
+  - 0.9 = core topic (CyberSyn, UP, CIA ops, coup, nationalisations)
+  - 1.0 = primary source from the period
+classification:
+  persona: You are a research archivist for a Digital Humanities project at Cambridge University. Your
+    task is to classify historical documents into a coverage matrix for the Allende era in Chile (1969-1973).
+  reading_rule: 'Identify what the document IS, not what it MENTIONS. A speech by Allende defending
+
+    constitutional democracy on the day of the coup is primarily Política Nacional (1) —
+
+    even though Política Militar (13) is the obvious context. The coup is the SETTING,
+
+    the speech is the SUBJECT. A US State Dept memo about Chilean copper expropriation
+
+    is Estados Unidos (6) primary — even though copper, industry and economy all appear,
+
+    because the document is a US foreign-policy artifact.'
+  category_examples:
+  - "Example: Allende's last speech (11 Sep 1973) = [1, 13, 6] (Política Nacional primary,\n  Política\
+    \ Militar secondary, Estados Unidos tertiary), NOT [13] alone."
+  - 'Example: US State Dept memo on Chilean copper expropriation = [6, 4, 3], NOT [11].'
+  json_examples:
+  - '{"category_ids": [11, 4, 1], "genre_id": 3, "month_iso": "1972-10", "confidence": 0.95}  // Trucker
+    strike cable'
+  - '{"category_ids": [1, 13, 6], "genre_id": 1, "month_iso": "1973-09", "confidence": 0.92}  // Allende''s
+    last speech'
+  - '{"category_ids": [6, 4, 3], "genre_id": 3, "month_iso": "1973-04", "confidence": 0.9}    // US-Chile
+    copper memo, written April 1973'
+  - '{"category_ids": [14, 1, 9], "genre_id": 7, "month_iso": "1971-08", "confidence": 0.7}   // Cultural
+    opinion piece w/ political context'
+reformulation:
+  system: 'Eres un historiador especialista en Chile 1969–1973. Reformula queries de búsqueda para archivos
+    históricos chilenos (Memoria Chilena, BN Digital, prensa de época) usando vocabulario de los 70: ''UP'',
+    ''APS'', ''compañero'', ''telex'', ''CORFO'', ''JAP'', nombres propios de época. Responde SOLO con
+    un JSON array de strings, sin explicación ni markdown.'
+entity_prompts:
+  era_label: Allende-era Chile (1969-1973)
+  era_label_local: el Chile de la Unidad Popular (1969-1973)
+  name_example: Salvador Allende
+  short_name_example: Allende
+seeds:
+- name: Salvador Allende
+  kind: character
+  role: President of Chile 1970-1973
+  aliases:
+  - Salvador Allende Gossens
+- name: Fernando Flores
+  kind: character
+  role: CORFO technical general manager; Minister; Cybersyn political lead
+  aliases: []
+- name: Stafford Beer
+  kind: character
+  role: Cybernetician; designer of Project Cybersyn
+  aliases: []
+- name: CORFO
+  kind: institution
+  role: Corporación de Fomento de la Producción — state development agency running Cybersyn
+  aliases: []
+- name: Unidad Popular
+  kind: institution
+  role: Governing left coalition 1970-1973
+  aliases: []
+- name: Sala de Operaciones (Opsroom)
+  kind: location
+  role: Cybersyn operations room, Santiago
+  aliases: []
+- name: La Moneda
+  kind: location
+  role: Presidential palace, Santiago
+  aliases: []

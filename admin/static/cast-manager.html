@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cast Manager — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444; --blue: #60a5fa;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; display: flex; flex-direction: column; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-shrink: 0; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+
+.main { display: grid; grid-template-columns: 290px 1fr; flex: 1; overflow: hidden; }
+.sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.search-box { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.search-box input {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--font); font-size: 11px; padding: 5px 8px; border-radius: 2px;
+}
+.search-box input:focus { outline: none; border-color: var(--accent); }
+.char-count { padding: 4px 12px; font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.cast-stats { padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-dim); }
+.cast-stats:empty { display: none; }
+.stat-hist { display: flex; align-items: flex-end; gap: 1px; height: 22px; margin: 4px 0; }
+.stat-hist span { flex: 1; background: #2a3a4a; min-height: 1px; }
+.stat-hist span.hi { background: #3a6; }
+.stat-caps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.stat-caps span { border: 1px solid #3a2a2a; color: #b8860b; padding: 0 4px; border-radius: 2px; }
+.breakdown { margin-top: 6px; display: grid; grid-template-columns: 72px 1fr 34px; gap: 3px 8px; font-size: 9px; align-items: center; }
+.bd-bar { height: 5px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.bd-bar div { height: 100%; background: #4a7; }
+.char-list { overflow-y: auto; flex: 1; }
+.char-row { padding: 8px 12px; border-bottom: 1px solid #1c1c1c; cursor: pointer; }
+.char-row:hover { background: var(--panel-2); }
+.char-row.active { background: var(--panel-2); border-left: 2px solid var(--accent); padding-left: 10px; }
+.char-name { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.char-name .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-name .sc { color: var(--text-dim); font-size: 9px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.comp-bar { height: 3px; background: #1c1c1c; border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.comp-fill { height: 100%; border-radius: 2px; }
+.needs-tag { color: var(--blue); font-size: 8px; letter-spacing: .5px; }
+
+.content { overflow-y: auto; padding: 16px; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; margin-bottom: 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.empty { color: var(--text-dim); text-align: center; padding: 50px 20px; }
+.bio { font-size: 11px; line-height: 1.7; }
+.bio.missing { color: var(--text-dim); font-style: italic; }
+.meta-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 10px; color: var(--text-mid); }
+.meta-row b { color: var(--accent); font-weight: normal; }
+.ext-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.ext-link { color: var(--blue); text-decoration: none; font-size: 10px; border: 1px solid var(--border); padding: 1px 7px; border-radius: 10px; }
+.ext-link:hover { border-color: var(--blue); }
+.wd-desc { font-size: 10px; color: var(--text-mid); margin-top: 5px; font-style: italic; }
+.compass { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.compass svg { background: #0d0d0d; border-radius: 3px; flex-shrink: 0; }
+.compass-label { font-size: 11px; color: var(--text); }
+.compass-empty { font-size: 10px; color: var(--text-dim); margin-top: 8px; }
+.compass-empty code { color: var(--text-mid); }
+
+.timeline { list-style: none; }
+.timeline li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid #181818; }
+.timeline li:last-child { border-bottom: none; }
+.tl-date { width: 64px; flex-shrink: 0; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tl-kind { width: 84px; flex-shrink: 0; color: var(--text-dim); font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding-top: 1px; }
+.tl-quote { font-style: italic; }
+.tl-act { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
+.tl-kind-rumor { color: #b8860b; }
+.tl-li-rumor .tl-desc { opacity: .75; }
+.tl-rumor-text::before { content: "≈ "; color: #b8860b; }
+.tl-desc { flex: 1; }
+
+.lifeline { width: 100%; height: auto; display: block; margin-bottom: 6px; }
+.lifeline text { font-family: var(--font); }
+.lifeline circle { cursor: pointer; }
+.ll-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 9px; color: var(--text-dim); margin-bottom: 12px; }
+.ll-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.doc-link { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.doc-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.tl-src { color: var(--blue); border-bottom: none; font-size: 10px; }
+.rel-list { list-style: none; }
+.rel-list li { display: flex; align-items: center; gap: 7px; padding: 5px 0; border-bottom: 1px solid #181818; flex-wrap: wrap; }
+.rel-list li:last-child { border-bottom: none; }
+.rel-kind { font-size: 8px; text-transform: uppercase; letter-spacing: .5px; padding: 1px 5px; border: 1px solid; border-radius: 2px; flex-shrink: 0; }
+.rel-arrow { color: var(--text-dim); flex-shrink: 0; }
+.rel-desc { font-size: 10px; }
+.rel-conf { color: var(--text-dim); font-size: 9px; font-variant-numeric: tabular-nums; margin-left: auto; flex-shrink: 0; }
+th { color: var(--text-dim); font-weight: normal; text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: .5px; }
+td { padding: 4px 6px; border-bottom: 1px solid #181818; }
+tr:last-child td { border-bottom: none; }
+.dim { color: var(--text-dim); }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-7 CAST MANAGER</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="main">
+
+  <!-- Sidebar: searchable character list -->
+  <aside class="sidebar">
+    <div class="search-box">
+      <input type="search" id="search" placeholder="Buscar personaje…" autocomplete="off">
+    </div>
+    <div class="char-count" id="char-count">—</div>
+    <div class="cast-stats" id="cast-stats"></div>
+    <div class="char-list" id="char-list"><div class="empty">Cargando…</div></div>
+  </aside>
+
+  <!-- Central: selected character detail -->
+  <main class="content" id="detail">
+    <div class="empty">Selecciona un personaje de la lista para ver su detalle.</div>
+  </main>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let selectedId = null;
+let searchTimer = null;
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function compColor(s) {
+  if (s >= 0.7) return 'var(--ok)';
+  if (s >= 0.4) return 'var(--warn)';
+  return 'var(--error)';
+}
+
+const KIND_COLOR = {
+  role: 'var(--accent)', event: 'var(--blue)',
+  affiliation: 'var(--ok)', other: 'var(--text-mid)',
+};
+
+// Small political compass: economic (izq−/der+) × social (libertario−/autoritario+).
+function compassSvg(c) {
+  if (typeof c.pol_economic !== 'number' || typeof c.pol_social !== 'number')
+    return '<div class="compass-empty">Brújula política pendiente — ejecuta <code>cast-manager politics</code>.</div>';
+  const S = 120, m = 12, plot = S - 2 * m, half = plot / 2, cx = m + half, cy = m + half;
+  // economic → x (right = +1), social → y (down = +1 authoritarian)
+  const px = cx + (c.pol_economic) * half;
+  const py = cy + (c.pol_social) * half;
+  const label = esc(c.pol_label || '');
+  return `<div class="compass">
+    <svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" role="img" aria-label="Brújula política">
+      <rect x="${m}" y="${m}" width="${plot}" height="${plot}" fill="#0d0d0d" stroke="#2a2a2a"/>
+      <line x1="${cx}" y1="${m}" x2="${cx}" y2="${m + plot}" stroke="#222"/>
+      <line x1="${m}" y1="${cy}" x2="${m + plot}" y2="${cy}" stroke="#222"/>
+      <text x="${cx}" y="${m - 3}" text-anchor="middle" font-size="6.5" fill="var(--text-dim)">autoritario</text>
+      <text x="${cx}" y="${m + plot + 8}" text-anchor="middle" font-size="6.5" fill="var(--text-dim)">libertario</text>
+      <text x="${m - 2}" y="${cy - 3}" text-anchor="start" font-size="6.5" fill="var(--text-dim)">izq.</text>
+      <text x="${m + plot + 2}" y="${cy - 3}" text-anchor="end" font-size="6.5" fill="var(--text-dim)">der.</text>
+      <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="4" fill="var(--accent)" stroke="#000" stroke-width="0.5"/>
+    </svg>
+    <div class="compass-label">${label}<span class="dim"> · (${c.pol_economic.toFixed(2)}, ${c.pol_social.toFixed(2)})</span></div>
+  </div>`;
+}
+
+// Fractional year from an ISO-ish string (mirrors the API's _year_fraction).
+function yearFrac(s) {
+  if (!s) return null;
+  const ym = String(s).match(/(\d{4})/);
+  if (!ym) return null;
+  let year = +ym[1];
+  const mm = String(s).match(/^\s*\d{4}-(\d{2})/);
+  if (mm) { const mo = +mm[1]; if (mo >= 1 && mo <= 12) year += (mo - 1) / 12; }
+  return year;
+}
+
+function niceStep(range) {
+  if (range <= 8) return 1;
+  if (range <= 20) return 5;
+  if (range <= 60) return 10;
+  return 25;
+}
+
+// SVG life-line: birth → death, the 1970-1973 period always highlighted, with a
+// lollipop marker per dated fact (coloured by kind, hover for detail).
+function lifelineSvg(d) {
+  const span = d.span || { start: 1970, end: 1974 };
+  const hl = d.highlight || { start: 1970, end: 1974 };
+  const start = span.start, end = span.end;
+  const W = 1000, H = 124, mL = 12, mR = 12, base = 78;
+  const plotW = W - mL - mR, range = Math.max(1, end - start);
+  const x = y => mL + (y - start) / range * plotW;
+
+  // Highlighted Cybersyn period.
+  const hx0 = x(hl.start), hx1 = x(hl.end);
+  const band =
+    `<rect x="${hx0.toFixed(1)}" y="16" width="${(hx1 - hx0).toFixed(1)}" height="${base - 16}" `
+    + `fill="var(--accent)" opacity="0.10"/>`
+    + `<text x="${((hx0 + hx1) / 2).toFixed(1)}" y="12" text-anchor="middle" font-size="8" `
+    + `fill="var(--accent)">1970–1973</text>`;
+
+  const axis = `<line x1="${mL}" y1="${base}" x2="${W - mR}" y2="${base}" stroke="#444"/>`;
+
+  // Year ticks.
+  const step = niceStep(range);
+  let ticks = '';
+  for (let yr = Math.ceil(start / step) * step; yr <= end; yr += step) {
+    const tx = x(yr);
+    ticks += `<line x1="${tx.toFixed(1)}" y1="${base}" x2="${tx.toFixed(1)}" y2="${base + 4}" stroke="#333"/>`
+      + `<text x="${tx.toFixed(1)}" y="${base + 15}" text-anchor="middle" font-size="9" fill="var(--text-dim)">${yr}</text>`;
+  }
+
+  // Fact lollipops (staggered heights to reduce overlap when facts cluster).
+  const stems = [46, 30, 60, 38];
+  const dots = (d.timeline || [])
+    .filter(f => typeof f.year === 'number')
+    .map((f, i) => {
+      const fx = x(f.year), fy = base - stems[i % stems.length];
+      const col = KIND_COLOR[f.kind] || KIND_COLOR.other;
+      const tip = `${esc(f.date_iso || '')} · ${esc(f.description)}`;
+      return `<line x1="${fx.toFixed(1)}" y1="${base}" x2="${fx.toFixed(1)}" y2="${fy.toFixed(1)}" stroke="${col}" stroke-width="1" opacity="0.45"/>`
+        + `<circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3" fill="${col}"><title>${tip}</title></circle>`;
+    }).join('');
+
+  // Birth / death markers.
+  const by = yearFrac(d.character.birth_date), dy = yearFrac(d.character.death_date);
+  let life = '';
+  if (by !== null) {
+    const bx = x(by);
+    life += `<circle cx="${bx.toFixed(1)}" cy="${base}" r="3.5" fill="var(--text)"/>`
+      + `<text x="${bx.toFixed(1)}" y="${base - 6}" text-anchor="middle" font-size="8" fill="var(--text-mid)">n. ${esc(d.character.birth_date)}</text>`;
+  }
+  if (dy !== null) {
+    const dx = x(dy);
+    life += `<circle cx="${dx.toFixed(1)}" cy="${base}" r="3.5" fill="var(--text)"/>`
+      + `<text x="${dx.toFixed(1)}" y="${base - 6}" text-anchor="middle" font-size="8" fill="var(--text-mid)">† ${esc(d.character.death_date)}</text>`;
+  }
+
+  const noLifeDates = by === null && dy === null
+    ? '<span class="dim">— fechas de nacimiento/muerte aún no extraídas</span>' : '';
+  const legend = `<div class="ll-legend">
+    <span><i style="background:var(--accent)"></i>rol</span>
+    <span><i style="background:var(--blue)"></i>evento</span>
+    <span><i style="background:var(--ok)"></i>afiliación</span>
+    <span><i style="background:var(--text-mid)"></i>otro</span>
+    ${noLifeDates}
+  </div>`;
+
+  return `<svg class="lifeline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+            aria-label="Línea de tiempo de ${esc(d.character.name)}">
+    ${band}${axis}${ticks}${dots}${life}
+  </svg>${legend}`;
+}
+
+// Component weights of the strict metric (denominators for the breakdown bars).
+const COMPONENT_MAX = { identity: 0.15, documents: 0.20, external: 0.25, timeline: 0.30, pipeline: 0.10 };
+const COMPONENT_LABELS = { identity: 'identidad', documents: 'documentos', external: 'externo', timeline: 'timeline', pipeline: 'pipeline' };
+
+function breakdownHtml(detail) {
+  if (!detail || typeof detail !== 'object') return '';
+  const rows = Object.keys(COMPONENT_MAX)
+    .filter(k => typeof detail[k] === 'number')
+    .map(k => `
+      <span>${COMPONENT_LABELS[k]}</span>
+      <div class="bd-bar"><div style="width:${Math.min(100, detail[k] / COMPONENT_MAX[k] * 100)}%"></div></div>
+      <span>${detail[k].toFixed(2)}/${COMPONENT_MAX[k]}</span>`).join('');
+  const caps = (detail.caps || [])
+    .map(c => `<span title="${esc(c)}">⚠ ${esc(CAP_LABELS[c] || c)}</span>`).join('');
+  if (!rows && !caps) return '';
+  return `<div class="breakdown">${rows}</div>${caps ? `<div class="stat-caps">${caps}</div>` : ''}`;
+}
+
+const CAP_LABELS = {
+  no_external_analysis: 'sin análisis externo',
+  low_kind_diversity: 'timeline poco diverso',
+  no_research_mission: 'sin misión completada',
+};
+
+async function loadStats() {
+  try {
+    const r = await fetch('/api/cast/stats');
+    if (!r.ok) return;
+    const s = await r.json();
+    if (!s.available || !s.total) { $('cast-stats').innerHTML = ''; return; }
+    const max = Math.max(...s.histogram, 1);
+    const hiFrom = Math.floor(s.threshold * 10);
+    const bars = s.histogram.map((n, i) =>
+      `<span class="${i >= hiFrom ? 'hi' : ''}" style="height:${Math.max(4, n / max * 100)}%"
+        title="[${(i / 10).toFixed(1)}, ${((i + 1) / 10).toFixed(1)}): ${n}"></span>`).join('');
+    const caps = Object.entries(s.caps)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, n]) => `<span title="${esc(k)}">${esc(CAP_LABELS[k] || k)}: ${n}</span>`)
+      .join('');
+    $('cast-stats').innerHTML = `
+      <div><b>${s.complete}</b> completo${s.complete === 1 ? '' : 's'} (≥ ${s.threshold})</div>
+      <div class="stat-hist">${bars}</div>
+      ${caps ? `<div class="stat-caps">${caps}</div>` : ''}`;
+  } catch { /* stats are decorative — never block the list */ }
+}
+
+async function loadList() {
+  const q = $('search').value.trim();
+  const r = await fetch('/api/cast/characters' + (q ? `?search=${encodeURIComponent(q)}` : ''));
+  if (!r.ok) return;
+  const d = await r.json();
+
+  if (!d.available || !d.total) {
+    $('char-count').textContent = '0 personajes';
+    $('char-list').innerHTML = `<div class="empty">${d.available
+      ? 'Sin personajes' + (q ? ' para esa búsqueda.' : ' aún — ejecuta el cast-manager.')
+      : 'Sin base de datos — ejecuta el pipeline primero.'}</div>`;
+    return;
+  }
+
+  $('char-count').textContent = `${d.total} personaje${d.total === 1 ? '' : 's'}`;
+  $('char-list').innerHTML = d.characters.map(c => `
+    <div class="char-row${c.character_id === selectedId ? ' active' : ''}"
+         data-id="${esc(c.character_id)}">
+      <div class="char-name">
+        <span class="nm" title="${esc(c.name)}">${esc(c.name)}</span>
+        <span class="sc">${c.completeness_score.toFixed(2)}</span>
+      </div>
+      <div class="comp-bar"><div class="comp-fill"
+        style="width:${Math.max(c.completeness_score * 100, 2)}%;background:${compColor(c.completeness_score)}"></div></div>
+      ${c.needs_research ? '<span class="needs-tag">⌕ pendiente de investigación</span>' : ''}
+    </div>`).join('');
+
+  document.querySelectorAll('.char-row').forEach(row =>
+    row.addEventListener('click', () => selectCharacter(row.dataset.id)));
+}
+
+async function selectCharacter(characterId) {
+  selectedId = characterId;
+  document.querySelectorAll('.char-row').forEach(row =>
+    row.classList.toggle('active', row.dataset.id === characterId));
+
+  const [r, rr] = await Promise.all([
+    fetch(`/api/cast/characters/${encodeURIComponent(characterId)}`),
+    fetch(`/api/cast/characters/${encodeURIComponent(characterId)}/relations`),
+  ]);
+  if (!r.ok) { $('detail').innerHTML = '<div class="empty">Error al cargar el personaje.</div>'; return; }
+  const d = await r.json();
+  const c = d.character;
+  const rels = rr.ok ? (await rr.json()).relations : [];
+
+  const aliases = (c.aliases || []).length
+    ? `<span>alias: <b>${c.aliases.map(esc).join(', ')}</b></span>` : '';
+
+  const compass = compassSvg(c);
+  const extLinks = [];
+  if (c.wikipedia_url)
+    extLinks.push(`<a class="ext-link" href="${esc(c.wikipedia_url)}" target="_blank" rel="noopener">Wikipedia ↗</a>`);
+  if (c.wikidata_id)
+    extLinks.push(`<a class="ext-link" href="https://www.wikidata.org/wiki/${esc(c.wikidata_id)}" target="_blank" rel="noopener" title="${esc(c.wikidata_desc || '')}">Wikidata ${esc(c.wikidata_id)} ↗</a>`);
+  const extHtml = extLinks.length ? `<span class="ext-links">${extLinks.join('')}</span>` : '';
+  const wdDesc = c.wikidata_desc
+    ? `<div class="wd-desc">${esc(c.wikidata_desc)} <span class="dim">— Wikidata</span></div>` : '';
+
+  const timeline = (d.timeline || []).length ? `
+    <ul class="timeline">
+      ${d.timeline.map(f => {
+        const isStatement = f.kind === 'statement';
+        const isRumor = f.kind === 'rumor';
+        let desc = esc(f.description);
+        if (isStatement) {
+          desc = `<span class="tl-quote">«${desc}»</span>${f.speech_act
+            ? ` <span class="tl-act">${esc(f.speech_act)}</span>` : ''}`;
+        } else if (isRumor) {
+          desc = `<span class="tl-rumor-text">${desc}</span>${f.reported_by
+            ? ` <span class="dim">— según ${esc(f.reported_by)}</span>` : ''}`;
+        }
+        return `
+        <li class="${isRumor ? 'tl-li-rumor' : ''}">
+          <span class="tl-date">${esc(f.date_iso || 's/f')}</span>
+          <span class="tl-kind${isRumor ? ' tl-kind-rumor' : ''}">${esc(f.kind || '—')}</span>
+          <span class="tl-desc">${desc}${f.doc_id
+            ? ` <a class="doc-link tl-src" href="/archivero?doc=${encodeURIComponent(f.doc_id)}" title="Leer el documento fuente">¶</a>`
+            : ''}</span>
+        </li>`;
+      }).join('')}
+    </ul>` : '<div class="dim">Sin hechos registrados aún.</div>';
+
+  const docs = (d.documents || []).length ? `
+    <table>
+      <thead><tr><th style="width:55%">Documento</th><th>Mencionado por</th></tr></thead>
+      <tbody>
+        ${d.documents.map(doc => `
+          <tr>
+            <td title="${esc(doc.title)}"><a class="doc-link" href="/archivero?doc=${encodeURIComponent(doc.doc_id)}">${esc(doc.title)}</a></td>
+            <td class="dim">${esc(doc.mentioned_by || '—')}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>` : '<div class="dim">Sin menciones registradas.</div>';
+
+  $('detail').innerHTML = `
+    <div class="section">
+      <div class="sec-title">Personaje</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:15px;color:var(--text);letter-spacing:1px">${esc(c.name)}</div>
+        ${extHtml}
+      </div>
+      ${wdDesc}
+      <div class="bio ${c.biography ? '' : 'missing'}" style="margin-top:8px">
+        ${c.biography ? esc(c.biography) : 'Biografía pendiente — la síntesis biográfica llega en una etapa posterior.'}
+      </div>
+      <div class="meta-row">
+        <span>completitud: <b>${c.completeness_score.toFixed(2)}</b></span>
+        <span>menciones: <b>${c.mention_count}</b></span>
+        ${aliases}
+        ${c.needs_research ? '<span style="color:var(--blue)">⌕ en cola de investigación del Propositor</span>' : ''}
+      </div>
+      ${breakdownHtml(c.completeness_detail)}
+      ${compass}
+    </div>
+    <div class="section">
+      <div class="sec-title">Línea de tiempo</div>
+      ${lifelineSvg(d)}
+      ${timeline}
+    </div>
+    <div class="section">
+      <div class="sec-title">Relaciones <span class="dim" style="letter-spacing:0;text-transform:none">(Cast Director)</span></div>
+      ${relationsHtml(rels)}
+    </div>
+    <div class="section">
+      <div class="sec-title">Documentos donde aparece</div>
+      ${docs}
+    </div>`;
+}
+
+const REL_LABEL = {
+  familia: 'Familia', aliado: 'Aliado', colega: 'Colega', rival: 'Rival',
+  enemigo: 'Enemigo', afiliacion: 'Afiliación', contraparte: 'Contraparte',
+  superior: 'Superior', mentor: 'Mentor', otro: 'Otro',
+};
+const REL_COLOR = {
+  familia: 'var(--blue)', aliado: 'var(--ok)', colega: 'var(--accent)',
+  rival: 'var(--warn)', enemigo: 'var(--error)', afiliacion: '#a78bfa',
+  superior: 'var(--text-mid)', mentor: '#22d3ee', otro: 'var(--text-dim)',
+};
+const DIRECTED = { superior: 1, mentor: 1 };
+
+function relationsHtml(rels) {
+  if (!rels || !rels.length)
+    return '<div class="dim">Sin relaciones aún — ejecuta el cast-director.</div>';
+  return `<ul class="rel-list">${rels.map(rel => {
+    const col = REL_COLOR[rel.kind] || REL_COLOR.otro;
+    const label = REL_LABEL[rel.kind] || rel.kind;
+    // Directed kinds show who points at whom; symmetric show ↔.
+    const arrow = DIRECTED[rel.kind] ? (rel.direction === 'outgoing' ? '→' : '←') : '↔';
+    const conf = Math.round((rel.confidence || 0) * 100);
+    const prov = (rel.provenance || []).map((doc, i) =>
+      `<a class="doc-link tl-src" href="/archivero?doc=${encodeURIComponent(doc)}" title="Documento fuente">¶${i + 1}</a>`
+    ).join(' ');
+    return `<li>
+      <span class="rel-kind" style="color:${col};border-color:${col}">${esc(label)}</span>
+      <span class="rel-arrow">${arrow}</span>
+      <a class="doc-link" href="/cast-manager?char=${encodeURIComponent(rel.other_id)}">${esc(rel.other_name)}</a>
+      ${rel.description ? `<span class="dim rel-desc">— ${esc(rel.description)}</span>` : ''}
+      <span class="rel-conf" title="confianza (corroboración)">${conf}%</span>
+      ${prov}
+    </li>`;
+  }).join('')}</ul>`;
+}
+
+$('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadList, 250);
+});
+
+async function refresh() {
+  loadStats();
+  await loadList();
+  $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+}
+
+async function openLinkedCharacter() {
+  const charId = new URLSearchParams(location.search).get('char');
+  if (charId) await selectCharacter(charId);
+}
+
+refresh().then(openLinkedCharacter);
+setInterval(refresh, 30_000);
+</script>
+</body>
+</html>
