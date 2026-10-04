@@ -1,0 +1,130 @@
+# Rate limits for the CyberSyn Research Gatekeeper.
+#
+# rps: requests per second (enforced as minimum interval = 1/rps).
+# rpm: informational label only; rps is what the Gatekeeper actually enforces.
+#
+# Rule of thumb: if a site has no published crawl policy, treat it like a human
+# browsing slowly. Government / institutional archives are especially sensitive —
+# getting banned would break the entire research pipeline.
+
+domains:
+
+  # ── Chilean government / institutional archives ───────────────────────────
+  # Heritage sites with limited server capacity. Very conservative.
+  bibliotecanacionaldigital.gob.cl:
+    rps: 0.1        # 1 request every 10 s
+    rpm: 6
+
+  anarchy.cl:
+    rps: 0.1        # 1 request every 10 s
+    rpm: 6
+
+  # ── Search engines (HTML scraping) ───────────────────────────────────────
+  # DuckDuckGo HTML is known to block scrapers. Keep very slow.
+  html.duckduckgo.com:
+    rps: 0.05       # 1 request every 20 s
+    rpm: 3
+
+  duckduckgo.com:
+    rps: 0.05
+    rpm: 3
+
+  # ── JSON APIs (no key required) ───────────────────────────────────────────
+  # OpenAlex: free polite pool (we send mailto=). Their published limit is
+  # 100K req/day but we stay far under that.
+  api.openalex.org:
+    rps: 0.5        # 1 request every 2 s
+    rpm: 30
+
+  # CrossRef: free, no auth. Suggested limit is ~50 req/s with User-Agent;
+  # we stay conservative.
+  api.crossref.org:
+    rps: 0.5        # 1 request every 2 s
+    rpm: 30
+
+  # Wikisource ES: MediaWiki API, very tolerant but keep polite.
+  es.wikisource.org:
+    rps: 0.33       # 1 request every 3 s
+    rpm: 20
+
+  # Archive.org advancedsearch JSON API — generous limits, stay polite.
+  archive.org:
+    rps: 0.33       # 1 request every 3 s
+    rpm: 20
+
+  # US State Dept FRUS Chile volume — government server, be respectful.
+  history.state.gov:
+    rps: 0.2        # 1 request every 5 s
+    rpm: 12
+
+  # US State Dept FOIA Virtual Reading Room (Chile Declassification Project).
+  # Search JSON + PDF downloads — government server, be respectful.
+  foia.state.gov:
+    rps: 0.2        # 1 request every 5 s
+    rpm: 12
+
+  # Semantic Scholar — unauthenticated shared pool is strict; stay slow.
+  api.semanticscholar.org:
+    rps: 0.2        # 1 request every 5 s
+    rpm: 12
+
+  # Library of Congress Chronicling America — generous, but be polite.
+  chroniclingamerica.loc.gov:
+    rps: 0.33       # 1 request every 3 s
+    rpm: 20
+
+  # Spanish Wikipedia MediaWiki API — tolerant; keep polite.
+  es.wikipedia.org:
+    rps: 0.33       # 1 request every 3 s
+    rpm: 20
+
+  # Wikidata API — character enrichment (wbsearchentities / wbgetentities). Polite.
+  www.wikidata.org:
+    rps: 0.33       # 1 request every 3 s
+    rpm: 20
+
+  # Marxists.org — volunteer-run static archive; be gentle.
+  www.marxists.org:
+    rps: 0.2        # 1 request every 5 s
+    rpm: 12
+
+  # ── Deferred connectors (documented; not yet wired in the Archivero) ──────
+  # Policy settled in advance; connectors pending (see wiki/sources.html).
+  search.scielo.org:        # SciELO — OAI-PMH / Solr search
+    rps: 0.2
+    rpm: 12
+  catalog.hathitrust.org:   # HathiTrust bibliographic API (enrichment lookup)
+    rps: 0.2
+    rpm: 12
+  www.bcn.cl:               # Biblioteca del Congreso Nacional de Chile
+    rps: 0.1
+    rpm: 6
+  query.wikidata.org:       # Wikidata SPARQL (entity/relations — Cast Manager)
+    rps: 0.2
+    rpm: 12
+
+  # ── Academic paywalls — treat carefully ──────────────────────────────────
+  jstor.org:
+    rps: 0.1        # 1 request every 10 s
+    rpm: 6
+
+  academia.edu:
+    rps: 0.1
+    rpm: 6
+
+  # ── Paid API (SerpAPI) ────────────────────────────────────────────────────
+  serpapi.com:
+    rps: 1.0
+    rpm: 60
+
+# Applied to any domain not listed above.
+# Unknown sites get the slowest rate — conservative by design.
+default:
+  rps: 0.1          # 1 request every 10 s
+  rpm: 6
+
+# After this many consecutive 5xx / network errors the domain enters cooldown.
+circuit_breaker_threshold: 3
+
+# How long (minutes) a domain stays in cooldown before retrying.
+cooldown_minutes: 30.0

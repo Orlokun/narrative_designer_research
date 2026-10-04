@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html" class="here">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Admin Dashboard</div>
+  <h1>Admin Dashboard <span class="badge real">Real</span></h1>
+  <p class="lede">A FastAPI app (<code>admin.app:main</code>, port 8080) that visualises the
+    pipeline: the theme×genre coverage matrix (with its per-cell month strip), mission
+    queue, per-agent stats and service health; the document reader lives on the Archivero
+    page. Static pages live in <code>admin/static/</code> (shared assets under the <code>/static</code>
+    mount); routers in <code>admin/routers/</code> (prefix <code>/api</code>). Every screen
+    carries the same persistent navbar (<code>nav.js</code>).</p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Admin convention — always hyperlink</span>
+    <p><strong>The admin is always cross-linked.</strong> Names of entities are never dead text:</p>
+    <ul>
+      <li>Every time a <strong>character</strong> appears, it links to
+        <code>/cast-manager?char=&lt;character_id&gt;</code> — the page opens with that
+        character selected.</li>
+      <li>Every time a <strong>document</strong> is mentioned, it links to
+        <code>/archivero?doc=&lt;doc_id&gt;</code> — the reader lands on that document
+        (filters cleared, prev/next intact via its carousel position). Implemented in:
+        Archivero recent table, Mapper recent mappings, Cast Manager mention list and
+        timeline source marks (¶).</li>
+      <li>The <strong>text reader lives on the Archivero page</strong>
+        (<code>archivero.html</code>); <code>GET /api/documents/by-id/{doc_id}</code>
+        backs the deep link (doc + carousel position, reachable even if unverified).</li>
+    </ul>
+  </div>
+
+  <h2>Routers (<code>admin/routers/</code>)</h2>
+  <table>
+    <tr><th>Router</th><th>Exposes</th></tr>
+    <tr><td><code>health.py</code></td><td><code>/health/services</code>, <code>/health/gatekeeper/status</code>, <code>/health/gatekeeper/log</code> — RE service status &amp; recent fetch log.</td></tr>
+    <tr><td><code>heatmap.py</code></td><td>Coverage-matrix endpoints over the <a href="coverage-matrix.html">16×13×48 cube</a>: <code>/api/heatmap/genres</code> (theme×genre projection with plausibility priors, unclassified counts and a plausibility-weighted coverage % — the dashboard's main grid, implausible empty cells dashed), <code>/api/heatmap/genres/months</code> (the 48-month strip for one clicked theme×genre cell, critical months marked; genre 0 = unclassified bucket), and <code>/api/heatmap</code> (legacy theme×month projection, kept for API consumers).</td></tr>
+    <tr><td><code>database.py</code></td><td><code>/database</code> — table row counts, DB file size, 10 recent documents, source-kind distribution.</td></tr>
+    <tr><td><code>pipeline.py</code></td><td><code>/pipeline</code> — mission-queue counts by status + Archivero document stats.</td></tr>
+    <tr><td><code>documents.py</code></td><td>Paginated document browser (carousel) + <code>/documents/by-id/{doc_id}</code> (one doc + its position in the unfiltered carousel order — backs every "doc mentioned" deep link), category encode/decode, verification-status filters.</td></tr>
+    <tr><td><code>agents.py</code></td><td><code>/agents/{propositor,archivero,verificator,mapper}</code> — per-agent detail. The mapper endpoint reports mapped/pending/context counts, genre + category distributions and recent mappings. The verificator endpoint reports the acceptance threshold by reading the Verificator's own constant (never hardcoded), so the UI always reflects the real pipeline value.</td></tr>
+    <tr><td><code>cast.py</code></td><td><code>/cast/characters</code> (searchable list), <code>/cast/characters/{id}</code> (bio, life-line, timeline, documents), <code>/cast/characters/{id}/relations</code> (a character's relations, both directions) and <code>/cast/graph</code> (the whole relation network — edges carry kind, confidence, directedness, description and provenance) — back the <code>/cast-manager</code> and <code>/cast-director</code> pages.</td></tr>
+    <tr><td><code>locations.py</code></td><td><code>/locations</code> (searchable list + summary: total, complete, with_coordinates — every row carries latitude/longitude so the page plots the map from one request) and <code>/locations/{id}</code> (profile, parsed completeness_detail, linked character via JOIN, per-kind facts, mentioning documents) — back the <code>/locations</code> page.</td></tr>
+    <tr><td><code>performance.py</code></td><td><code>/performance</code> — recent pipeline runs, each with its per-stage timing breakdown; <code>/performance/{run_id}</code> — one run's stages in detail. Reads <code>pipeline_runs</code> + <code>pipeline_run_stages</code>.</td></tr>
+  </table>
+
+  <h2>Static pages (<code>admin/static/</code>)</h2>
+  <table>
+    <tr><th>File</th><th>Purpose</th></tr>
+    <tr><td><code>nav.js</code></td><td><strong>Shared persistent navbar</strong> injected into every screen (served from the <code>/static</code> mount). The page list lives in one <code>PAGES</code> array — adding a future agent page = one entry here + its route in <code>admin/app.py</code>. The bar scrolls horizontally, so it scales to many agents: a visible scrollbar, mouse-wheel horizontal scrolling, and the active page auto-centred on load. Right-alignment comes from <code>margin-left:auto</code> on the first item — never <code>justify-content:flex-end</code>, which with overflow clips the first links unreachably.</td></tr>
+    <tr><td><code>index.html</code></td><td>Main dashboard — the theme×genre matrix is the only grid; clicking a cell unfolds its 48-month strip below (close with ✕). Plus mission queue, DB stats and service health (the dark/amber "Ops Room" UI this wiki's palette nods to).</td></tr>
+    <tr><td><code>propositor.html</code></td><td>Mission-queue detail.</td></tr>
+    <tr><td><code>mapper.html</code></td><td>Mapper page — mapping state cards (mapped / pending / context / % with genre), genre + category distribution bars, recent mappings table.</td></tr>
+    <tr><td><code>cast-manager.html</code></td><td>Cast Manager page (per the roadmap design): left sidebar with searchable character list + completeness bars, topped by a <strong>calibration strip</strong> (<code>/api/cast/stats</code>: complete count vs the 0.85 threshold, 10-bucket score histogram, and how many characters each hard gate caps); central detail shows the strict metric's <strong>per-component breakdown bars</strong> + active gates from <code>completeness_detail</code>; central detail with biography, an <strong>SVG life-line chart</strong> (birth→death, 1970–1973 highlighted, lollipop per fact), the dated timeline list (statements render as «quotes» with their speech act; rumors dimmed, marked ≈ and attributed "— según <em>reported_by</em>"), a <strong>Relaciones</strong> section (Cast Director relations, each linking to the other character + provenance docs) and the documents mentioning the character.</td></tr>
+    <tr><td><code>locations.html</code></td><td>Locations page (<code>/locations</code>, "Lugares" in the navbar): left sidebar with searchable location list + completeness bars (📍 marks located places, ⌕ queued research); an <strong>SVG coordinate map</strong> — self-contained, no external tiles — that auto-fits the plotted Wikidata coordinates (equirectangular with cos-latitude correction, adaptive graticule, dots coloured by kind and sized by mentions; click a dot to open the place); detail with description, external links, coords, the <strong>linked character</strong> (hyperlinks to <code>/cast-manager?char=…</code> per the always-hyperlink convention), an <strong>image gallery</strong> (Commons-hosted P18 + article lead image, lazy-loaded and hidden on load failure, each thumb linking to its Commons File: page for licence/attribution), per-kind facts (appreciations render as «quotes» attributed "— según <em>reported_by</em>") and the mentioning documents (reader links). Deep-linkable via <code>?loc=…</code>.</td></tr>
+    <tr><td><code>cast-director.html</code></td><td>Cast Director page — a force-directed <strong>relationship network graph</strong> (nodes sized by degree; edges coloured by kind, width + opacity by confidence). <strong>Directed relations (superior/mentor) draw an arrowhead</strong>; clicking an edge opens a <strong>detail panel</strong> (both characters linked, description, confidence, provenance document links); <strong>kind chips</strong> and a <strong>confidence-threshold slider</strong> filter what is shown; click a node to open its character; drag to rearrange. No JS dependencies.</td></tr>
+    <tr><td><code>archivero.html</code></td><td>Document fetch statistics — <strong>hosts the document reader</strong> (lector de documentos: paginated viewer with category/month/verified filters, moved here from the dashboard; a "doc mentioned" link opens it here with that document loaded).</td></tr>
+    <tr><td><code>verificator.html</code></td><td>Scoring / approval dashboard.</td></tr>
+    <tr><td><code>performance.html</code></td><td>Per-run timing. A left list of pipeline runs (most-recent first); selecting one shows that run's wall-clock duration, summed stage time and a per-stage timing breakdown with each stage's counts. Served at <code>/performance</code>.</td></tr>
+  </table>
+
+  <h2>Planned pages <span class="badge planned">Planned</span></h2>
+  <table>
+    <tr><th>Page</th><th>Purpose</th></tr>
+    <tr><td><code>results</code> (resultados)</td><td>What the <em>latest</em> pipeline instance produced: the newly <strong>verified documents</strong> and the newly <strong>added characters</strong>, keyed by that run's id.</td></tr>
+  </table>
+  <p>The <code>results</code> page depends on a per-run identifier shared across agents —
+    that backing schema (<code>pipeline_runs</code> + <code>pipeline_run_stages</code> + a
+    <code>run_id</code> stamp on verified documents) <strong>now exists</strong>; see
+    <a href="data-model.html#run-tracking">Data Model → run tracking</a>. The
+    <strong>Performance page is built</strong> on it (see Static pages above); the
+    <code>results</code> page's "new characters" half still waits on the Cast Manager.</p>
+
+  <div class="callout pending">
+    <span class="label">⚠ Rebuild note</span>
+    <p>The Admin dashboard was <strong>heavily extended</strong> in the lost 4 weeks. The
+      pages above are the baseline that survived in the GitHub clone; the enhancements are
+      part of the rebuild — see the <a href="roadmap.html">Roadmap</a>.</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="coverage-matrix.html">Coverage Matrix</a>
+    <a href="agents.html">Agents</a>
+    <a href="gatekeeper.html">Gatekeeper</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

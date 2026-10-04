@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gatekeeper — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Gatekeeper</div>
+  <h1>Gatekeeper <span class="badge real">Real</span></h1>
+  <p class="lede">A FastAPI microservice (port 8001) that every outbound HTTP request
+    passes through. It is one of only two long-running services (with the
+    <a href="admin.html">Admin</a> dashboard).</p>
+  <p><strong>Entry point:</strong> <code>research_engine/gatekeeper/app.py</code> →
+    <code>main()</code> · also <code>domain_state.py</code>, <code>rate_limits.yaml</code> ·
+    <strong>CLI:</strong> <code>make gatekeeper</code></p>
+
+  <h2>Everything goes through <code>POST /fetch</code></h2>
+  <p>The Gatekeeper enforces, per request:</p>
+  <table>
+    <tr><th>Mechanism</th><th>Behaviour</th></tr>
+    <tr><td>Per-domain async locks</td><td>Serialises concurrent requests to the same domain.</td></tr>
+    <tr><td>Rate limiting</td><td>Minimum interval per domain from <code>rate_limits.yaml</code>. DuckDuckGo at 0.05 rps (it actively blocks bots). The <code>default</code> entry (0.1 rps) applies to any unlisted domain.</td></tr>
+    <tr><td>Circuit breaker</td><td>3 consecutive failures (5xx / network) → domain cooldown (30 min default).</td></tr>
+    <tr><td>429 handling</td><td>Honors the source's <code>Retry-After</code> header (a short hint wins even mid-escalation); otherwise escalating backoff — 60s doubled per consecutive 429, capped at 30 min. The escalation <strong>decays with time served</strong> (one step per elapsed base period) and a success resets it — so a domain that waits out its penalties recovers instead of pinning at the cap. Repeat offenders still show growing cooldowns in the admin: deliberate etiquette, not a bug.</td></tr>
+    <tr><td>API keys</td><td>Optional per-source keys from <code>.env</code> via <code>lib.config.settings</code> — e.g. <code>SEMANTIC_SCHOLAR_API_KEY</code> (free) sends <code>x-api-key</code> and moves us off Semantic Scholar's shared unauthenticated pool, which 429s under global load regardless of our own politeness.</td></tr>
+    <tr><td>Disk cache</td><td>7-day TTL; cached responses cost zero rate-limit tokens.</td></tr>
+  </table>
+
+  <h2>Health &amp; observability</h2>
+  <p>The <a href="admin.html">Admin</a> dashboard reads Gatekeeper state via
+    <code>/health/gatekeeper/status</code> (per-domain state) and
+    <code>/health/gatekeeper/log</code> (recent fetch log). Rate limits live in
+    <code>research_engine/gatekeeper/rate_limits.yaml</code> — see the full
+    <a href="sources.html">Sources &amp; APIs</a> roster for every domain's policy,
+    format and tier.</p>
+
+  <h2>Configuration</h2>
+  <p>Host/port come from <code>lib.config.settings</code>
+    (<code>gatekeeper_host</code>/<code>gatekeeper_port</code>) — never hard-coded. Tested
+    in <code>tests/test_gatekeeper.py</code> (cache hits, circuit breaker, 429 handling,
+    PDF binary detection, health endpoint).</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="architecture.html">Architecture</a>
+    <a href="agent-archivero.html">Archivero</a>
+    <a href="admin.html">Admin Dashboard</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

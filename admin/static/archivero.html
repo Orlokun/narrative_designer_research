@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archivero — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.page { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+.cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; min-width: 120px; text-align: center; }
+.card-val { font-size: 24px; color: var(--accent); display: block; line-height: 1; }
+.card-val.ok { color: var(--ok); }
+.card-val.warn { color: var(--warn); }
+.card-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }
+.tab-btn { background: var(--panel-2); border: 1px solid var(--border); color: var(--text-mid); font-family: var(--font); font-size: 10px; padding: 3px 10px; border-radius: 2px; cursor: pointer; }
+.tab-btn.active { border-color: var(--accent); color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+th { color: var(--text-dim); font-weight: normal; text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: .5px; }
+td { padding: 4px 6px; border-bottom: 1px solid #181818; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+.num { text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+.dim { color: var(--text-dim); }
+/* Bar chart */
+.bar-chart { display: flex; flex-direction: column; gap: 5px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-label { width: 120px; font-size: 10px; color: var(--text-mid); text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; height: 12px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+.bar-seg { height: 100%; border-radius: 2px; transition: width .5s ease; }
+.bar-val { font-size: 10px; color: var(--text-dim); width: 80px; flex-shrink: 0; }
+/* Score pill */
+.score-pill { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: bold; }
+.score-hi  { background: #14532d; color: var(--ok); }
+.score-mid { background: #422006; color: var(--warn); }
+.score-lo  { background: #450a0a; color: var(--error); }
+.score-na  { background: #1a1a1a; color: var(--text-dim); }
+.doc-link { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--text-dim); }
+.doc-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Document reader (lector de documentos) */
+.carousel-nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; margin-bottom: 8px; gap: 8px; }
+.carousel-btn { background: var(--panel-2); border: 1px solid var(--border); color: var(--text-mid); font-family: var(--font); font-size: 10px; padding: 4px 10px; border-radius: 2px; cursor: pointer; flex-shrink: 0; letter-spacing: .5px; transition: color .15s, border-color .15s; }
+.carousel-btn:hover { color: var(--accent); border-color: var(--accent); }
+.carousel-btn:disabled { opacity: .3; cursor: default; }
+.carousel-pos { color: var(--text-mid); font-size: 10px; white-space: nowrap; }
+.carousel-filter { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+.carousel-filter select { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); font-family: var(--font); font-size: 10px; padding: 2px 6px; border-radius: 2px; }
+.doc-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px; }
+.doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 8px; }
+.doc-title { font-size: 11px; color: var(--text); flex: 1; line-height: 1.4; }
+.doc-score-box { text-align: right; flex-shrink: 0; }
+.doc-score-num { font-size: 16px; font-weight: bold; }
+.dscore-hi  { color: var(--ok); }
+.dscore-mid { color: var(--warn); }
+.dscore-lo  { color: var(--error); }
+.score-bar-wrap { width: 80px; height: 4px; background: #1c1c1c; border-radius: 2px; margin-top: 3px; }
+.score-bar-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+.doc-meta { font-size: 9px; color: var(--text-dim); letter-spacing: .5px; margin-bottom: 8px; display: flex; gap: 10px; flex-wrap: wrap; }
+.doc-meta span { color: var(--text-mid); }
+.doc-body { font-size: 10px; color: var(--text); line-height: 1.6; max-height: 320px; overflow-y: auto; white-space: pre-wrap; border-top: 1px solid var(--border); padding-top: 8px; }
+.doc-empty { color: var(--text-dim); font-size: 10px; text-align: center; padding: 20px; }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-1 ARCHIVERO</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="page">
+
+  <!-- Counts -->
+  <div class="section">
+    <div class="sec-title">Documentos en el archivo</div>
+    <div class="cards">
+      <div class="card"><span class="card-val" id="c-total">—</span><span class="card-lbl">total</span></div>
+      <div class="card"><span class="card-val ok" id="c-verified">—</span><span class="card-lbl">verificados</span></div>
+      <div class="card"><span class="card-val warn" id="c-pending">—</span><span class="card-lbl">sin verificar</span></div>
+      <div class="card"><span class="card-val" id="c-last">—</span><span class="card-lbl">última ingesta</span></div>
+    </div>
+  </div>
+
+  <!-- Source breakdown with toggle -->
+  <div class="section">
+    <div class="sec-title">
+      Distribución por fuente
+      <button class="tab-btn active" id="btn-by-source" onclick="showView('source')">Por fuente</button>
+      <button class="tab-btn" id="btn-by-kind" onclick="showView('kind')">Por tipo</button>
+    </div>
+    <div id="view-source" class="bar-chart"></div>
+    <div id="view-kind"   class="bar-chart" style="display:none"></div>
+  </div>
+
+  <!-- Document reader -->
+  <div class="section">
+    <div class="sec-title">
+      Lector de documentos
+      <div class="carousel-filter">
+        <select id="cat-filter"><option value="">Todas las categorías</option></select>
+        <select id="month-filter"><option value="">Todos los meses</option></select>
+        <select id="flag-filter"><option value="">Todas las utilidades</option></select>
+        <button class="carousel-btn" onclick="clearFilters()">✕ Limpiar</button>
+        <label style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--text-mid);letter-spacing:0;text-transform:none">
+          <input type="checkbox" id="verified-only" checked style="accent-color:var(--accent)">
+          Solo verificados
+        </label>
+      </div>
+    </div>
+    <div class="carousel-nav">
+      <button class="carousel-btn" id="btn-prev" onclick="carouselMove(-1)">◀ Anterior</button>
+      <span class="carousel-pos" id="car-pos">Cargando…</span>
+      <button class="carousel-btn" id="btn-random" onclick="carouselRandom()">Aleatorio</button>
+      <button class="carousel-btn" id="btn-next" onclick="carouselMove(1)">Siguiente ▶</button>
+    </div>
+    <div id="doc-card">
+      <div class="doc-empty">Sin documentos verificados. Ejecuta el verificator primero.</div>
+    </div>
+  </div>
+
+  <!-- Recent documents -->
+  <div class="section">
+    <div class="sec-title">Documentos recientes (20 últimos)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:35%">Título</th>
+          <th>Fuente</th>
+          <th>Tipo</th>
+          <th class="num">Score</th>
+          <th>Ingresado</th>
+          <th class="num">Ver.</th>
+        </tr>
+      </thead>
+      <tbody id="recent-body"><tr><td colspan="6" class="dim">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let sourceData = [], kindData = {};
+
+function showView(which) {
+  $('view-source').style.display = which === 'source' ? 'flex' : 'none';
+  $('view-kind').style.display   = which === 'kind'   ? 'flex' : 'none';
+  $('btn-by-source').className   = 'tab-btn' + (which === 'source' ? ' active' : '');
+  $('btn-by-kind').className     = 'tab-btn' + (which === 'kind'   ? ' active' : '');
+}
+
+function renderBarChart(containerId, rows, maxVal) {
+  const container = $(containerId);
+  container.innerHTML = rows.map(r => {
+    const pct     = maxVal > 0 ? (r.count / maxVal * 100) : 0;
+    const qPct    = (r.avg_quality || 0) * 100;
+    const qColor  = r.avg_quality >= 0.7 ? 'var(--ok)' : r.avg_quality >= 0.4 ? 'var(--warn)' : 'var(--error)';
+    const qStr    = r.avg_quality != null ? r.avg_quality.toFixed(2) : '—';
+    return `<div class="bar-row">
+      <div class="bar-label">${r.label}</div>
+      <div class="bar-track" title="${r.count} docs, avg quality ${qStr}">
+        <div class="bar-seg" style="width:${pct}%;background:var(--accent)"></div>
+      </div>
+      <div class="bar-val">${r.count} <span style="color:${qColor};font-size:9px">↑${qStr}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function scorePill(s) {
+  if (s === null || s === undefined) return '<span class="score-pill score-na">—</span>';
+  const cls = s >= 0.7 ? 'score-hi' : s >= 0.4 ? 'score-mid' : 'score-lo';
+  return `<span class="score-pill ${cls}">${s.toFixed(2)}</span>`;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/agents/archivero');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.available) return;
+
+    $('c-total').textContent    = d.total_documents ?? '—';
+    $('c-verified').textContent = d.verified        ?? '—';
+    $('c-pending').textContent  = d.pending         ?? '—';
+    if (d.last_ingested_at) {
+      const dt = new Date(d.last_ingested_at);
+      $('c-last').textContent = dt.toLocaleDateString('es-CL', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+    }
+
+    // Source bars
+    sourceData = (d.by_source || []).map(s => ({
+      label: s.label, count: s.doc_count, avg_quality: s.avg_quality
+    }));
+    const maxS = Math.max(...sourceData.map(x => x.count), 1);
+    renderBarChart('view-source', sourceData, maxS);
+
+    // Kind bars
+    const kindRows = Object.entries(d.by_kind || {}).map(([k, v]) => ({
+      label: k, count: v, avg_quality: null
+    })).sort((a, b) => b.count - a.count);
+    const maxK = Math.max(...kindRows.map(x => x.count), 1);
+    renderBarChart('view-kind', kindRows, maxK);
+
+    // Recent table
+    const recent = d.recent_documents || [];
+    $('recent-body').innerHTML = recent.length ? recent.map(doc => {
+      const dt = doc.ingested_at ? new Date(doc.ingested_at).toLocaleDateString('es-CL',
+        {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+      const source = (doc.source_id || '').split('/').pop();
+      return `<tr>
+        <td title="${doc.title}"><a class="doc-link" href="/archivero?doc=${encodeURIComponent(doc.doc_id)}">${doc.title}</a></td>
+        <td class="dim">${source}</td>
+        <td class="dim">${doc.source_kind||'—'}</td>
+        <td class="num">${scorePill(doc.quality_score)}</td>
+        <td class="dim">${dt}</td>
+        <td class="num" style="color:${doc.verified?'var(--ok)':'var(--error)'}">${doc.verified?'✓':'✗'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="dim">Sin documentos</td></tr>';
+
+    $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+  } catch(e) { console.error(e); }
+}
+// ── Lector de documentos ──────────────────────────────────────────────────────
+let carPage = 1, carTotal = 0;
+
+async function safeGet(url) {
+  try { const r = await fetch(url); return r.ok ? r.json() : null; }
+  catch { return null; }
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function docScoreClass(s) {
+  if (s === null || s === undefined) return '';
+  if (s >= 0.7) return 'dscore-hi';
+  if (s >= 0.4) return 'dscore-mid';
+  return 'dscore-lo';
+}
+
+function renderCategoryBadges(cats) {
+  if (!cats || !cats.length) return '<span class="dim">—</span>';
+  const styles = [
+    'color:var(--accent);border:1px solid var(--accent);padding:0 5px;border-radius:2px',
+    'color:var(--text);border:1px solid #333;padding:0 5px;border-radius:2px',
+    'color:var(--text-mid);border:1px dashed #333;padding:0 5px;border-radius:2px',
+  ];
+  return cats.slice(0, 3).map((c, i) =>
+    `<span style="${styles[i] || styles[2]}">${escHtml(c)}</span>`
+  ).join(' ');
+}
+
+function carouselUrl(page) {
+  const cat = $('cat-filter').value;
+  const mon = $('month-filter').value;
+  const flg = $('flag-filter').value;
+  const vo  = $('verified-only').checked;
+  let url = `/api/documents?page=${page}&verified_only=${vo}`;
+  if (cat) url += `&category=${encodeURIComponent(cat)}`;
+  if (mon) url += `&month=${encodeURIComponent(mon)}`;
+  if (flg) url += `&flag=${encodeURIComponent(flg)}`;
+  return url;
+}
+
+function clearFilters() {
+  $('cat-filter').value = '';
+  $('month-filter').value = '';
+  $('flag-filter').value = '';
+  loadCarousel(1);
+}
+
+async function loadCarousel(page) {
+  const data = await safeGet(carouselUrl(page));
+  if (!data) { renderDocEmpty('Error al cargar.'); return; }
+  carTotal = data.total;
+  carPage  = data.page;
+  $('car-pos').textContent = data.total > 0
+    ? `${data.page} / ${data.total} documentos`
+    : 'Sin documentos';
+  $('btn-prev').disabled   = carPage <= 1;
+  $('btn-next').disabled   = carPage >= carTotal;
+  $('btn-random').disabled = carTotal < 2;
+  if (!data.doc) { renderDocEmpty('Sin documentos verificados en esta categoría.'); return; }
+  renderDoc(data.doc);
+}
+
+function renderDocEmpty(msg) {
+  $('doc-card').innerHTML = `<div class="doc-empty">${msg}</div>`;
+}
+
+function renderDoc(doc) {
+  const qs    = doc.quality_score;
+  const cls   = docScoreClass(qs);
+  const pct   = qs !== null ? Math.round(qs * 100) : 0;
+  const barColor = qs >= 0.7 ? 'var(--ok)' : qs >= 0.4 ? 'var(--warn)' : 'var(--error)';
+  const date  = doc.ingested_at ? new Date(doc.ingested_at).toLocaleDateString('es-CL') : '—';
+  const source = (doc.source_id || '').split('/').pop();
+  $('doc-card').innerHTML = `
+    <div class="doc-card">
+      <div class="doc-header">
+        <div class="doc-title">${escHtml(doc.title || '—')}</div>
+        <div class="doc-score-box">
+          <div class="doc-score-num ${cls}">${qs !== null ? qs.toFixed(2) : '—'}</div>
+          <div class="score-bar-wrap">
+            <div class="score-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="doc-meta">
+        ${renderCategoryBadges(doc.categories || [doc.category])}
+        <span>${escHtml(doc.month_iso)}</span>
+        <span>${escHtml(source)}</span>
+        <span>${escHtml(doc.source_kind)}</span>
+        <span>${date}</span>
+        ${doc.mapped === false ? '<span style="color:var(--text-dim);border:1px dashed var(--text-dim);padding:0 4px;border-radius:2px">sin mapear</span>' : ''}
+        ${doc.doc_tag === 'context' ? '<span style="color:#60a5fa;border:1px solid #60a5fa;padding:0 4px;border-radius:2px">contexto</span>' : ''}
+        ${doc.verified ? '<span style="color:var(--ok)">✓ verificado</span>' : ''}
+        ${(doc.is_complete === false || doc.is_complete === 0)
+          ? '<span style="color:var(--warn);border:1px solid var(--warn);padding:0 4px;border-radius:2px">⚠ incompleto</span>'
+          : ''}
+      </div>
+      ${renderFlagChips(doc.flags)}
+      <div class="doc-body">${escHtml(doc.text || '')}</div>
+    </div>`;
+}
+
+// Utility flags (Ag-9 Document Curator). 'quality' flags read amber, 'good-for' teal.
+function renderFlagChips(flags) {
+  if (!flags || !flags.length) return '';
+  const chips = flags.map(f => {
+    const quality = f.kind === 'quality';
+    const color = quality ? '#f0b429' : '#2dd4bf';
+    const conf = f.confidence != null ? ` ${Math.round(f.confidence * 100)}%` : '';
+    const tip = escHtml(f.rationale || f.name || f.slug);
+    return `<span title="${tip}" style="font-size:9px;letter-spacing:0;text-transform:none;`
+      + `color:${color};border:1px solid ${color};padding:0 5px;border-radius:8px;white-space:nowrap">`
+      + `${quality ? '★ ' : '▸ '}${escHtml(f.name || f.slug)}<span style="opacity:.6">${conf}</span></span>`;
+  }).join(' ');
+  return `<div class="doc-flags" style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px">${chips}</div>`;
+}
+
+async function loadCarouselFlags() {
+  const flags = await safeGet('/api/documents/flags');
+  if (!flags || !flags.length) return;
+  const sel = $('flag-filter');
+  flags.filter(f => f.count > 0).forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.slug;
+    opt.textContent = `${f.name} (${f.count})`;
+    sel.appendChild(opt);
+  });
+}
+
+function carouselMove(delta) {
+  const p = Math.max(1, Math.min(carTotal, carPage + delta));
+  loadCarousel(p);
+}
+
+function carouselRandom() {
+  if (carTotal < 1) return;
+  loadCarousel(Math.floor(Math.random() * carTotal) + 1);
+}
+
+async function loadCarouselCategories() {
+  const cats = await safeGet('/api/documents/categories');
+  if (!cats || !cats.length) return;
+  const sel = $('cat-filter');
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+function populateMonthFilter() {
+  const sel = $('month-filter');
+  let y = 1969, m = 10;
+  for (let i = 0; i < 48; i++) {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = `${y}-${String(m).padStart(2, '0')}`;
+    sel.appendChild(opt);
+    if (++m > 12) { m = 1; y++; }
+  }
+}
+
+$('cat-filter').addEventListener('change', () => loadCarousel(1));
+$('month-filter').addEventListener('change', () => loadCarousel(1));
+$('flag-filter').addEventListener('change', () => loadCarousel(1));
+$('verified-only').addEventListener('change', () => loadCarousel(1));
+
+async function openLinkedDoc() {
+  const docId = new URLSearchParams(location.search).get('doc');
+  if (!docId) return false;
+  const r = await fetch(`/api/documents/by-id/${encodeURIComponent(docId)}`);
+  if (!r.ok) { renderDocEmpty(`Documento no encontrado: ${docId}`); return true; }
+  const d = await r.json();
+  // The linked doc may be unverified/unfiltered — open the reader wide.
+  $('verified-only').checked = false;
+  $('cat-filter').value = '';
+  $('month-filter').value = '';
+  $('flag-filter').value = '';
+  await loadCarousel(d.position);
+  $('doc-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return true;
+}
+
+populateMonthFilter();
+loadCarouselCategories();
+loadCarouselFlags();
+openLinkedDoc().then(opened => { if (!opened) loadCarousel(1); });
+
+refresh();
+setInterval(refresh, 15_000);
+</script>
+</body>
+</html>

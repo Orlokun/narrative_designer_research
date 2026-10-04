@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html" class="here">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumbs"><a href="index.html">Home</a> › Platform</div>
+  <h1>The reusable platform</h1>
+  <p class="lede">
+    How one historical moment becomes a research project, how a project drives every agent,
+    and how the game Director consults the result. This page is the entry point for anyone
+    who wants to document a <em>different</em> moment than Project Cybersyn.
+  </p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Origin</span>
+    <p>This repository is a <strong>translation</strong> of the <code>cybersyn-backend</code> research
+    engine into a general tool. The Cybersyn engine itself was left untouched; here its hardcoded
+    historical knowledge (themes, dates, vocabulary, prompts, source routing) was lifted into a
+    declarative <strong>project spec</strong>, and three new pieces were added around the pipeline:
+    the <a href="#grid-proposer">Grid Proposer</a>, the <a href="#source-scout">Source Scout</a> and the
+    <a href="#knowledge">Knowledge API</a> for the Director. Project Cybersyn ships as the reference
+    project (<code>projects/cybersyn/project.yaml</code>) and the pipeline behaves identically under it.</p>
+  </div>
+
+  <h2>The flow for a new moment</h2>
+  <pre>
+  historian                 Grid Proposer              Source Scout               pipeline (unchanged)
+  "Weimar Berlin,   ──▶   proposes the grid:   ──▶   probes the APIs that  ──▶   Propositor → Gatekeeper →
+   1929-10 … 1933-03,      themes · weights ·         fit the moment, ranks       Archivero → Verificator →
+   Germany, de"            critical months ·          them by real hits,          Mapper → Cast / Location
+                           seeds (people,             writes source_tiers         managers → Cast Director →
+                           institutions, places) ·                                Document Curator
+                           relevance rules
+                                   │                           │                            │
+                                   ▼                           ▼                            ▼
+                         projects/weimar/project.yaml  (edited by the historian)      archivo.sqlite
+                                                                                            │
+                                                                        Knowledge API ◀─────┘
+                                                                        (Director consults it
+                                                                         while the player acts)
+  </pre>
+  <ol>
+    <li><strong>Propose</strong> — <code>uv run grid-proposer propose --moment "…" --start YYYY-MM --end YYYY-MM --region X --language xx --slug name</code>
+      writes <code>projects/&lt;slug&gt;/project.yaml</code>. Use <code>--no-llm</code> for a generic skeleton to fill by hand.</li>
+    <li><strong>Edit</strong> the YAML. It is meant to be read and corrected by a historian; nothing in it is hidden.</li>
+    <li><strong>Scout</strong> — <code>uv run source-scout run --project name --apply</code> (Gatekeeper running) probes the
+      applicable connectors and writes the four source tiers.</li>
+    <li><strong>Activate</strong> — <code>RESEARCH_PROJECT=name</code> in <code>.env</code>. Every agent now reads that grid.</li>
+    <li><strong>Run</strong> the normal cycles (<code>make pipeline</code>, <code>make pipeline-characters</code>) — see <a href="commands.html">Commands</a>.</li>
+    <li><strong>Consult</strong> — the game Director calls <code>KnowledgeBase.context(...)</code> with the player's situation.</li>
+  </ol>
+
+  <h2 id="spec">The project spec — <code>lib/project.py</code></h2>
+  <p>A <code>ResearchProject</code> (Pydantic, <code>extra="forbid"</code>) loaded from YAML. It is the single
+  place where a moment is described; agents import <code>project()</code> (cached) and derive their
+  module constants from it at import time, so their code reads as before.</p>
+  <table>
+    <tr><th>Section</th><th>What it holds</th><th>Who reads it</th></tr>
+    <tr><td><code>slug · title · description · language · region</code></td><td>Identity; <code>region</code> is the keyword appended to queries ("Chile"); <code>language</code> picks <code>wikipedia_xx</code>/<code>wikisource_xx</code>.</td><td>Propositor, Archivero, Source Scout</td></tr>
+    <tr><td><code>period</code></td><td><code>start_month</code>, <code>end_month</code> (inclusive ISO months → the time axis), optional <code>fallback_month</code> for undatable docs.</td><td>Propositor, Mapper, Cast Manager (spread window, max birth year), Admin heatmap</td></tr>
+    <tr><td><code>themes[]</code></td><td>Rows of the matrix: <code>id, name, weight (0-1), tier (critica/alta/media/baja), description, search_terms[]</code>.</td><td>Propositor (ranking + queries), Mapper (prompt), Admin</td></tr>
+    <tr><td><code>critical_months[]</code></td><td><code>month_iso, event, label</code> — priority boost + heatmap ticks.</td><td>Propositor, Admin heatmap</td></tr>
+    <tr><td><code>source_tiers</code></td><td>tier → ordered connector list. Drafted by the catalogue, replaced by the Source Scout.</td><td>Propositor</td></tr>
+    <tr><td><code>entity</code></td><td>Nominal cell for entity missions + <code>query_suffix</code> / <code>context_suffix</code> / <code>biography_suffix</code> for person queries.</td><td>Propositor</td></tr>
+    <tr><td><code>relevance</code></td><td>Verificator prompt pieces: <code>domain, persona, relevant_topics[], zero_score_rules[], score_scale[]</code>.</td><td>Verificator</td></tr>
+    <tr><td><code>classification</code></td><td>Mapper prompt pieces: <code>persona, reading_rule, category_examples[], json_examples[]</code>.</td><td>Mapper</td></tr>
+    <tr><td><code>reformulation.system</code></td><td>System prompt for period-vocabulary query rewriting.</td><td>Propositor</td></tr>
+    <tr><td><code>entity_prompts</code></td><td><code>era_label</code> (EN) / <code>era_label_local</code> for the historian personas; name examples.</td><td>Cast Manager, Location Manager</td></tr>
+    <tr><td><code>seeds[]</code></td><td>Characters, institutions, locations to research first (from the Grid Proposer). Informational today; feeding them into the cast/location queues is on the <a href="roadmap.html">Roadmap</a>.</td><td>—</td></tr>
+  </table>
+  <p>Selection: <code>settings.research_project</code> (env <code>RESEARCH_PROJECT</code>) — a slug under
+  <code>projects/</code> or a path to a YAML. Validation is strict: unknown keys, duplicate theme ids,
+  a critical month outside the period or a missing tier all fail at load time.</p>
+  <p><strong>What is still Cybersyn-shaped:</strong> the genre axis (<code>lib/genres.py</code>) keeps its 13 genres
+  and Spanish search terms; its per-theme plausibility overrides apply <em>only</em> when the active project is
+  Cybersyn (<code>overrides_active()</code>), other projects use each genre's default prior. Per-project genre
+  vocabulary is the next generalisation step (Roadmap).</p>
+
+  <h2 id="grid-proposer">Grid Proposer (RE-0) — <code>research_engine/grid_proposer/</code></h2>
+  <p><span class="badge real">Real</span> Turns a <code>MomentBrief</code> (moment, period, region, language,
+  slug, number of themes) into a complete <code>ResearchProject</code>. The LLM (<code>LLMClient</code>, director
+  model) is asked for one JSON object — themes with weights and period search terms, critical months,
+  seeds, relevance topics and zero-score rules, era labels, vocabulary hints, query suffixes. Pure
+  functions then do the trustworthy part: <code>normalise_themes</code> (renumber, dedup, clamp weights,
+  derive tiers from weight), <code>normalise_critical_months</code> (inside the period, sorted),
+  <code>normalise_seeds</code>, and <code>build_project</code> fills everything else deterministically
+  (source tiers from the catalogue, entity defaults, prompt personas, score scale). A non-JSON or
+  failing LLM falls back to <code>skeleton_proposal</code> — a generic 12-theme grid with no historical
+  claims — which is also what <code>--no-llm</code> writes. <code>write()</code> refuses to overwrite an existing
+  spec without <code>--force</code>.</p>
+  <table>
+    <tr><th>Command</th><th>Does</th></tr>
+    <tr><td><code>grid-proposer propose --moment … --start … --end … --region … [--language en] [--slug] [--title] [--themes 12] [--no-llm] [--out PATH] [--force]</code></td><td>Draft and write the spec; prints a summary and the next step.</td></tr>
+    <tr><td><code>grid-proposer show &lt;slug|path&gt;</code></td><td>Print a spec summary (themes, critical months, seeds, critical-tier sources).</td></tr>
+  </table>
+
+  <h2 id="source-scout">Source Scout (RE-0b) — <code>research_engine/source_scout/</code> + <code>lib/sources.py</code></h2>
+  <p><span class="badge real">Real</span> "Which APIs actually have material for this moment?" The connector
+  <strong>catalogue</strong> (<code>lib/sources.py</code>) describes every connector the Archivero can call —
+  kind, access style, languages, regions, coverage years. <code>applicable_connectors(project)</code> filters it:
+  the Chile Declassification Project, FRUS vol. XXI and the Marxists Allende archive drop out of a Weimar
+  project; <code>wikipedia</code>/<code>wikisource</code> are language-parametric and resolve to
+  <code>wikipedia_de</code>/<code>wikisource_de</code> (the Archivero builds their URLs for any language code).
+  The <strong>Scout</strong> then sends a few probe queries per connector (from the heaviest themes' search terms
+  plus region + critical year) through the Gatekeeper, runs the Archivero's own extractors over the
+  replies and counts hits. <code>recommend_tiers</code> ranks reachable connectors by yield into the four
+  tiers (web search always last and only in <code>critica</code>); <code>--apply</code> writes them (and the
+  entity sources) back into the YAML.</p>
+  <table>
+    <tr><th>Command</th><th>Does</th></tr>
+    <tr><td><code>source-scout run --project &lt;slug|path&gt; [--probes 2] [--apply] [--gatekeeper URL]</code></td><td>Probe, print the report (status · hits · rate · note per connector; exclusions with reasons; recommended tiers). Exit 1 when nothing is reachable (Gatekeeper down).</td></tr>
+    <tr><td><code>source-scout catalogue [--project …]</code></td><td>List every connector; with a project, which ones apply.</td></tr>
+  </table>
+  <p>Adding a connector still has three halves (<a href="sources.html">Sources &amp; APIs</a>) — and now a fourth:
+  a <code>Connector</code> entry in the catalogue so the Scout knows when to propose it.</p>
+
+  <h2 id="llm">LLM providers — <code>lib/llm.py</code></h2>
+  <p>The agents call <code>LLMClient()</code> and catch <code>LLMError</code>; the backend is chosen by
+  <code>LLM_PROVIDER</code>:</p>
+  <table>
+    <tr><th>Provider</th><th>Backend</th><th>Config</th></tr>
+    <tr><td><code>ollama</code> (default)</td><td><code>lib.ollama.OllamaClient</code> — a local Ollama server (the original setup).</td><td><code>OLLAMA_HOST</code>, <code>OLLAMA_MODEL_NPC</code>, <code>OLLAMA_MODEL_DIRECTOR</code></td></tr>
+    <tr><td><code>gemini</code></td><td><code>GeminiClient</code> — Google AI Studio's Gemini API, which serves the open <strong>Gemma</strong> models on a free tier. No local GPU needed. Requests are paced to <code>GEMINI_RPM</code> and retried on 429/5xx with backoff; the model name the agents pass (an Ollama tag) is mapped onto <code>GEMINI_MODEL</code>, and <code>list_models()</code> reports the Ollama tags as aliases so the agents' presence checks keep passing.</td><td><code>GEMINI_API_KEY</code>, <code>GEMINI_MODEL</code> (default <code>gemma-3-27b-it</code>), <code>GEMINI_RPM</code> (default 25)</td></tr>
+  </table>
+  <p>Both expose the same verbs (<code>generate</code>, <code>chat</code>, <code>list_models</code>); tests stub
+  <code>LLMClient</code> per module and never touch the network. Gemini calls go direct, not through the
+  Gatekeeper (it is not a harvest source).</p>
+
+  <h2 id="knowledge">Knowledge API for the Director — <code>lib/knowledge.py</code></h2>
+  <p><span class="badge real">Real</span> The read path from the archive to the game. A
+  <code>DirectorQuery</code> describes the player's situation — <code>month_iso</code> (± <code>month_window</code>),
+  <code>theme_ids</code>, <code>genre_ids</code>, <code>character_names</code>, <code>location_names</code>, <code>flags</code>
+  (Document Curator lenses), free <code>keywords</code>, <code>limit</code>. <code>KnowledgeBase.context(query)</code>
+  returns a <code>DirectorContext</code>:</p>
+  <ul>
+    <li><strong>documents</strong> — verified (<code>quality_score ≥ 0.6</code>) and mapped docs, filtered by theme/month/genre/flags/keywords and ranked by <code>score_document</code> (primary theme ×2, exact month, quality, lens and keyword matches), each with a keyword-centred snippet;</li>
+    <li><strong>characters</strong> — dossiers resolved by name or alias: biography, political label, the first dated timeline facts (speech acts and hearsay included), relations with their counterparts;</li>
+    <li><strong>locations</strong> — place dossiers with coordinates and facts.</li>
+  </ul>
+  <p><code>as_prompt()</code> renders the bundle as a plain-text evidence block, truncated to a character budget,
+  ready to paste into the Director's prompt; the whole context round-trips through JSON for logging and
+  replay. The API tolerates a partial archive (missing tables → empty sections) and is project-agnostic
+  (theme names come from the active spec). Wiring it into the runtime
+  <a href="director.html">Director</a>'s node loop is the next step (Roadmap).</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="commands.html">Commands</a>
+    <a href="sources.html">Sources &amp; APIs</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

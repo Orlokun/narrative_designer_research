@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sources & APIs — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Sources &amp; APIs</div>
+  <h1>Sources &amp; APIs</h1>
+  <p class="lede">The source roster the pipeline harvests from. A "connection" has three
+    halves: a per-domain rate-limit policy in the <a href="gatekeeper.html">Gatekeeper</a>
+    (<code>rate_limits.yaml</code>), a URL builder + extractor in the
+    <a href="agent-archivero.html">Archivero</a> registry, and a tier entry in the
+    <a href="agent-propositor.html">Propositor</a> (<code>_SOURCES</code>) so missions
+    actually target it.</p>
+
+  <h2>Active sources</h2>
+  <table>
+    <tr><th>Source</th><th>Domain</th><th>Format / access</th><th>kind</th><th>Tier(s)</th><th>RPS</th><th>Status</th></tr>
+    <tr><td>OpenAlex</td><td>api.openalex.org</td><td>REST JSON</td><td>academic</td><td>all</td><td>0.5</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>CrossRef</td><td>api.crossref.org</td><td>REST JSON</td><td>academic</td><td>crítica, alta</td><td>0.5</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>Internet Archive</td><td>archive.org</td><td>advancedsearch JSON</td><td>archive</td><td>all</td><td>0.33</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>Wikisource ES</td><td>es.wikisource.org</td><td>MediaWiki API (2-step)</td><td>archive</td><td>all</td><td>0.33</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>FRUS (US State Dept)</td><td>history.state.gov</td><td>HTML pages, sequential d1–d366</td><td>government</td><td>crítica</td><td>0.2</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>DuckDuckGo (search)</td><td>html.duckduckgo.com</td><td>HTML scrape</td><td>other</td><td>crítica (last resort)</td><td>0.05</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>BN Digital Chile</td><td>bibliotecanacionaldigital.gob.cl</td><td>HTML scrape</td><td>archive</td><td>— (not tiered: returns homepage)</td><td>0.1</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>Semantic Scholar</td><td>api.semanticscholar.org</td><td>REST JSON (graph search). Unauthenticated = shared global pool (429s under load); set <code>SEMANTIC_SCHOLAR_API_KEY</code> (free) for a dedicated pool — the Gatekeeper injects <code>x-api-key</code> automatically.</td><td>academic</td><td>crítica, alta</td><td>0.2</td><td><span class="badge real">Wired</span></td></tr>
+    <tr><td>Chronicling America</td><td>chroniclingamerica.loc.gov</td><td>REST JSON (OCR text)</td><td>press</td><td>crítica</td><td>0.33</td><td><span class="badge planned">New</span></td></tr>
+    <tr><td>Wikipedia ES</td><td>es.wikipedia.org</td><td>MediaWiki (generator=search + extracts)</td><td>reference</td><td>alta, media, baja</td><td>0.33</td><td><span class="badge planned">New</span></td></tr>
+    <tr><td>Marxists.org (Allende)</td><td>www.marxists.org</td><td>HTML index-crawl → pages</td><td>archive</td><td>crítica, alta</td><td>0.2</td><td><span class="badge planned">New</span></td></tr>
+    <tr><td>FOIA Chile (State Dept)</td><td>foia.state.gov</td><td>JSON search (<code>api/Search2/SubmitSimpleQuery</code>, collection <code>StateChile3</code>) → PDF → pypdf OCR</td><td>government</td><td>crítica, alta (+ genre cable-first)</td><td>0.2</td><td><span class="badge real">Wired</span></td></tr>
+  </table>
+  <p><strong>Chronicling America caveat:</strong> its digitised coverage is strongest before
+    1963, so 1969–73 hits may be sparse — kept in <code>crítica</code> only to limit noise.</p>
+
+  <h2>Deferred connectors</h2>
+  <p>Selected by the user but with no clean keyword-search JSON API. Rate-limit policy is
+    pre-set in <code>rate_limits.yaml</code>; the connector itself is pending a design call.</p>
+  <table>
+    <tr><th>Source</th><th>Domain</th><th>Why deferred</th><th>Status</th></tr>
+    <tr><td>SciELO</td><td>search.scielo.org</td><td>No clean keyword JSON API — OAI-PMH (date-range) or Solr scrape; verify endpoint.</td><td><span class="badge planned">Deferred</span></td></tr>
+    <tr><td>HathiTrust</td><td>catalog.hathitrust.org</td><td>Bibliographic API is identifier-lookup only — fits as an <em>enrichment</em> step (OCLC/ISBN → availability), not a search source.</td><td><span class="badge planned">Deferred</span></td></tr>
+    <tr><td>BCN (Congreso Nacional)</td><td>www.bcn.cl</td><td>Multiple services — choose Ley Chile XML, Historia Política bios (Cast layer), or <code>datos.bcn.cl</code> SPARQL.</td><td><span class="badge planned">Deferred</span></td></tr>
+    <tr><td>Wikidata</td><td>www.wikidata.org</td><td>MediaWiki API, consumed by the <a href="agent-cast-manager.html">Cast Manager</a>: <code>wbsearchentities</code> (linking, <code>enrich</code>) and <code>wbgetentities</code> claims/labels (<code>analyze</code> — positions, party, occupation, vital dates → timeline facts). All via the Gatekeeper. SPARQL (query.wikidata.org) remains available for the Cast Director's relation mining.</td><td><span class="badge real">Real</span></td></tr>
+  </table>
+
+  <h2>Candidate open APIs — investigated June 2026</h2>
+  <p>Web-verified candidates not yet wired, ordered by recommended priority. "Access"
+    states what was verified: <em>keyless JSON</em> = same pattern as current connectors;
+    <em>scrape</em> = multi-step HTML like FRUS/Marxists; <em>free key</em> = fits the
+    planned key-gated step. Genre column = which matrix columns it would feed.</p>
+  <table>
+    <tr><th>#</th><th>Source</th><th>What it holds for 1969–73 Chile</th><th>Access</th><th>Genres fed</th></tr>
+    <tr><td>1</td><td><strong>State Dept FOIA — Chile collection</strong> <span class="badge real">Wired</span><br><code>foia.state.gov</code></td><td>The <em>Chile Declassification Project</em> — now the <code>foia_chile</code> connector (see Active sources). Investigation found an undocumented JSON API behind the ASPX UI (<code>api/Search2/SubmitSimpleQuery</code>); PDFs carry an OCR text layer extracted with pypdf. Caveat: corpus is English — Spanish mission queries match mostly on proper names.</td><td>Undocumented JSON API + PDF OCR</td><td>Cable diplomático, Documento oficial</td></tr>
+    <tr><td>2</td><td><strong>NARA Catalog API</strong><br><code>catalog.archives.gov</code></td><td>US National Archives descriptions + OCR extracted text + digital objects; State central foreign-policy telegrams (1973+) live in AAD. Public domain.</td><td>Keyless JSON (basic search; 10k req/month with key)</td><td>Cable diplomático, Documento oficial, Informe técnico</td></tr>
+    <tr><td>3</td><td><strong>Library of Congress JSON API</strong><br><code>loc.gov</code></td><td>All LoC digital collections (manuscripts, photos, maps, press beyond Chronicling America) — any loc.gov page + <code>?fo=json</code>.</td><td>Keyless JSON, rate-limited</td><td>Prensa, Carta, Documento oficial</td></tr>
+    <tr><td>4</td><td><strong>Wilson Center Digital Archive</strong><br><code>digitalarchive.wilsoncenter.org</code></td><td>Declassified + translated cables from 143 countries — Soviet-bloc and Cuban records on Chile: the best fill for the hard <em>Unión Soviética</em> row.</td><td>No documented API (Drupal 10 — probe <code>/jsonapi</code>); else scrape</td><td>Cable diplomático, Carta y telex</td></tr>
+    <tr><td>5</td><td><strong>CIA FOIA Reading Room (CREST)</strong><br><code>cia.gov/readingroom</code></td><td>~930k declassified docs, full-text searchable; intelligence reporting on Allende/UP.</td><td>No API — scrape (FRUS-style)</td><td>Cable diplomático (inteligencia)</td></tr>
+    <tr><td>6</td><td><strong>Gallica (BnF) SRU</strong><br><code>gallica.bnf.fr/SRU</code></td><td>French press, books and pamphlets — European view of the UP; CQL query, <code>freeAccess</code> rights filter.</td><td>Keyless XML (SRU 1.2), open</td><td>Prensa informativa/opinión, Narrativa</td></tr>
+    <tr><td>7</td><td><strong>UN Digital Library</strong><br><code>digitallibrary.un.org</code></td><td>UN records, resolutions, speeches (Allende at UNCTAD III 1972); Invenio search API (<code>of=recjson</code>) + OAI-PMH at <code>/oai2d</code>. Caveat: print-era records pre-1979 partially indexed.</td><td>Keyless JSON + OAI-PMH</td><td>Discurso, Documento oficial, Transcripción</td></tr>
+    <tr><td>8</td><td><strong>DOAJ API</strong><br><code>doaj.org/api</code></td><td>Open-access article metadata (CC0), Elasticsearch query syntax — adds Latin-American OA journals beyond OpenAlex/CrossRef.</td><td>Keyless JSON (1000-record cap/search)</td><td>Artículo académico</td></tr>
+    <tr><td>9</td><td><strong>Open Library Search</strong><br><code>openlibrary.org/search.json</code></td><td>Book metadata + full-text-availability links into Internet Archive editions (memoirs, novels, periodo books).</td><td>Keyless JSON</td><td>Narrativa, Testimonio, Informe</td></tr>
+    <tr><td>10</td><td><strong>Europeana Search + Newspapers full-text</strong><br><code>api.europeana.eu</code></td><td>Aggregated European heritage incl. digitised newspapers with full-text search.</td><td><strong>Free key</strong> (account) → fits the key-gated step</td><td>Prensa, Artes y Cultura</td></tr>
+  </table>
+  <p><strong>Investigated and ruled out / kept deferred:</strong> Memoria Chilena & BN
+    Digital (no documented API; the existing <code>bn_digital</code> scrape already returns
+    the homepage), SciELO (confirmed: ArticleMeta is identifier/batch-based, not keyword
+    search — the batch <code>articles.json.zip</code> route remains an option),
+    LA Referencia (aggregator without a documented public search API; per-repo OAI-PMH
+    only), GDELT (coverage starts 1979).</p>
+
+  <h2>How to add a source</h2>
+  <ol>
+    <li><strong>Gatekeeper</strong>: add a per-domain entry to <code>research_engine/gatekeeper/rate_limits.yaml</code>.</li>
+    <li><strong>Archivero</strong>: add a URL template to <code>_SOURCE_URLS</code>, a <code>_SOURCE_KINDS</code> entry, and either (a) a pure <code>_x_extract(body)</code> + membership in <code>_JSON_SOURCES</code>/<code>_JSON_EXTRACTORS</code> for JSON APIs, or (b) a multi-step special-case in <code>run_cycle</code> for crawl/2-step sources (see FRUS, Wikisource, Marxists).</li>
+    <li><strong>Propositor</strong>: add the source key to the relevant tier(s) in <code>_SOURCES</code> — otherwise no mission targets it.</li>
+    <li><strong>Tests</strong>: a pure extractor/parse test in <code>tests/test_archivero.py</code> (offline).</li>
+  </ol>
+
+  <h2>Key-gated APIs (manual keys) <span class="badge planned">Planned</span></h2>
+  <p>The connectors above are all <strong>keyless</strong>. A planned step adds sources whose APIs
+    require a <strong>manually-supplied API key</strong>. The key is stored in <code>.env</code> and
+    read via <code>lib.config.settings</code> (never hard-coded, never read from the env directly) —
+    and the source is only enabled once its key is present, so a missing key skips the source
+    rather than failing the run.</p>
+  <ol>
+    <li><strong>Config</strong>: add the key field to <code>lib/config.py</code> settings; document it in <code>.env.example</code>.</li>
+    <li><strong>Gatekeeper</strong>: inject the key (header / query param) when fronting that domain's request.</li>
+    <li><strong>Enablement</strong>: the source registers in the Propositor tiers only when its key is configured.</li>
+  </ol>
+  <p>Tracked on the <a href="roadmap.html">Roadmap</a> under "Planned admin &amp; pipeline additions".</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="gatekeeper.html">Gatekeeper</a>
+    <a href="agent-archivero.html">Archivero</a>
+    <a href="coverage-matrix.html">Coverage Matrix (tiers)</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

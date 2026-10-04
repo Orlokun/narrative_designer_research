@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research Engine Wiki — Home</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html" class="here">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <h1>Narrative Designer Research Engine</h1>
+  <p class="lede">
+    A reusable multi-agent research engine for historical narrative design. A historical moment
+    becomes a <a href="platform.html#spec">project spec</a> (proposed by the
+    <a href="platform.html#grid-proposer">Grid Proposer</a>, source-routed by the
+    <a href="platform.html#source-scout">Source Scout</a>); the pipeline harvests period documents into a
+    theme × genre × month coverage matrix, extracts cast and places, and the
+    <a href="platform.html#knowledge">Knowledge API</a> lets a game Director consult it while the player acts.
+    Translated from the Project Cybersyn engine (Allende-era Chile, 1969–1973 — MPhil in Digital
+    Humanities, Cambridge), which ships as the reference project.
+  </p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Working Protocol — read this first</span>
+    <p><strong>This wiki is the ultimate source of truth and the rules of the project.</strong></p>
+    <ul>
+      <li><strong>Before any work:</strong> read <a href="rules.html">Rules</a>, then the
+        wiki page(s) covering the area you are about to touch.</li>
+      <li><strong>After work is done:</strong> update the affected wiki page(s) so the wiki
+        never lags the code. A change isn't finished until the wiki reflects it.</li>
+      <li><strong>Commit after every relevant change</strong> (code + its wiki update, same
+        commit) and push — the remote is the backup. See <a href="rules.html#git">Rules › Git</a>.</li>
+      <li><code>CLAUDE.md</code> is intentionally a thin pointer to this wiki — the detail
+        lives here, in one place, to avoid drift.</li>
+    </ul>
+  </div>
+
+  <h2>Browse the knowledge base</h2>
+  <div class="cards">
+    <a class="card" href="rules.html"><div class="t">Rules</div><div class="d">Engineering principles, conventions & the working protocol.</div></a>
+    <a class="card" href="platform.html"><div class="t">Platform</div><div class="d">Project spec, Grid Proposer, Source Scout, LLM providers, Knowledge API — how to research a new moment.</div></a>
+    <a class="card" href="architecture.html"><div class="t">Architecture</div><div class="d">Data flow, SQLite as source of truth, HTTP routing.</div></a>
+    <a class="card" href="agents.html"><div class="t">Agents</div><div class="d">Every agent, its ID, role and build status.</div></a>
+    <a class="card" href="data-model.html"><div class="t">Data Model</div><div class="d">SQLite tables + the Pydantic schemas.</div></a>
+    <a class="card" href="coverage-matrix.html"><div class="t">Coverage Matrix</div><div class="d">The theme × genre × month grid (16×13×48 for Cybersyn).</div></a>
+    <a class="card" href="commands.html"><div class="t">Commands</div><div class="d">CLI entry points & every Makefile target.</div></a>
+    <a class="card" href="admin.html"><div class="t">Admin Dashboard</div><div class="d">Routers, endpoints & static pages.</div></a>
+    <a class="card" href="glossary.html"><div class="t">Glossary</div><div class="d">Domain terms, key dates, speech-act theory.</div></a>
+    <a class="card" href="roadmap.html"><div class="t">Rebuild Roadmap</div><div class="d">What was lost, what to rebuild, the deploy goal.</div></a>
+  </div>
+
+  <h2>Build-status legend</h2>
+  <p>Used consistently across the wiki to distinguish what exists from what is planned:</p>
+  <table>
+    <tr><th>Badge</th><th>Meaning</th></tr>
+    <tr><td><span class="badge real">Real</span></td><td>Implemented in the codebase with logic and tests.</td></tr>
+    <tr><td><span class="badge stub">Stub</span></td><td>Empty scaffold (a 1-line <code>__init__.py</code>); no implementation yet.</td></tr>
+    <tr><td><span class="badge planned">Rebuild</span></td><td>Existed in the lost 4 weeks of work; to be rebuilt. Tracked on the <a href="roadmap.html">Roadmap</a>.</td></tr>
+  </table>
+
+  <h2>Primary-source background</h2>
+  <p>Project context documents (also stored in this folder):</p>
+  <ul>
+    <li><a href="OGuerrero_MPhil_DigitalHumanities_ResearchProposal.pdf">MPhil Digital Humanities — Research Proposal (PDF)</a></li>
+    <li><a href="OGuerreroCV_2026.pdf">Orlando Guerrero — CV 2026 (PDF)</a></li>
+  </ul>
+
+  <div class="related">
+    <div class="label">Start here</div>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="roadmap.html">Rebuild Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

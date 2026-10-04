@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cast Manager — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Cast Manager</div>
+  <h1>Cast Manager <span class="badge real">Real</span></h1>
+  <p class="lede">Step 7 of the <a href="architecture.html#canonical-pipeline">canonical
+    pipeline</a>. Reads documents, extracts the people mentioned in them, and maintains a
+    timeline of facts per character. Its output is what makes the Propositor's missions
+    <em>entity-driven</em> as well as gap-driven.</p>
+
+  <h2>What it does</h2>
+  <ul>
+    <li>Reads each verified document and extracts the <strong>people mentioned</strong>.</li>
+    <li>When the text supports it, records <strong>who mentions them</strong> (the source
+      and the speaker).</li>
+    <li>Adds each new character to the database with a <strong>per-character timeline</strong>
+      of facts and data drawn from the documents.</li>
+    <li>Surfaces newly-discovered characters back to the <a href="agent-propositor.html">Propositor</a>
+      so it can generate <strong>entity-driven missions</strong> (research that person).</li>
+    <li><strong>Closes the research loop:</strong> a document harvested by a character's
+      entity mission carries its <code>seed_character_id</code>, and the Cast Manager
+      <strong>force-attributes</strong> that document to the seed (a mention tagged
+      <code>entity-mission</code>) even if the LLM does not re-extract the seed's name — so
+      the character always gains evidence from research done on its behalf. No-op if the
+      seed was absorbed by a merge.</li>
+    <li><strong>Owns the research lifecycle:</strong> at the end of every cycle
+      <code>refresh_research_flags</code> re-evaluates each character against the freshly
+      harvested evidence — a still-thin character (<code>should_research</code>:
+      <code>completeness &lt; 0.85</code>, under 5 attempts, past a 3-day cooldown) is
+      re-flagged <code>needs_research</code> for another attempt; a complete or exhausted
+      one rests. This turns one-shot entity missions into a bounded, iterative loop.</li>
+  </ul>
+
+  <h2>Place in the flow</h2>
+  <p>Runs after the <a href="agent-mapper.html">Mapper</a>: only verified, mapped documents
+    are mined for cast information (it reads docs where <code>verified_at</code> and
+    <code>mapped_category_id</code> are set but <code>cast_extracted_at</code> is NULL, and
+    stamps each as it goes — so the run is self-terminating and idempotent). Output feeds the
+    <a href="agent-cast-director.html">Cast Director</a> (Step 8), which uses these hard facts
+    plus the documents to extract more complex relationships.</p>
+
+  <h2>Implementation</h2>
+  <p>Lives in <code>pipeline/cast_manager/__init__.py</code> (class <code>CastManager</code>,
+    pure functions, a <code>main()</code> CLI). The persisted entities are the Pydantic
+    <code>Character</code>, <code>CharacterFact</code> and <code>CharacterMention</code> models
+    in <code>lib/schemas.py</code>.</p>
+  <table>
+    <tr><th>Decision</th><th>Resolved as</th></tr>
+    <tr><td>Schema</td><td>Three tables — <code>characters</code>, <code>character_timeline</code>,
+      <code>character_mentions</code> — plus a <code>cast_extracted_at</code> column on
+      <code>documents</code>. See <a href="data-model.html#cast">Data Model → cast</a>.</td></tr>
+    <tr><td>Extraction</td><td><strong>LLM-driven (Gemma, <code>ollama_model_npc</code>)</strong>
+      via <code>chat()</code>, returning JSON people + facts. A <code>--no-llm</code> heuristic
+      (capitalised-name runs, no facts) gives a deterministic offline fallback. Tests mock the
+      Ollama client; the suite is fully offline.</td></tr>
+    <tr><td>Recall (backlog #1)</td><td>The LLM misses named people even in documents it
+      processes (confirmed: Agustín Edwards, Donald Kendall). Three-part fix: (1) a
+      sharpened, exhaustive prompt that demands foreign businessmen/officials and records
+      their role/affiliation; (2) a high-precision <strong>cued backstop</strong>
+      (<code>cued_person_names</code>) that recovers names anchored by an honorific
+      ("Mr. Donald Kendall") or a following role ("Agustín Edwards, publisher of El
+      Mercurio"), filtered against an organisation/place stoplist so boilerplate is not
+      captured; (3) a <code>--re-extract</code> mode to re-mine the existing corpus; and
+      (4) <strong>chunked extraction</strong> — long documents are split into overlapping
+      chunks (<code>chunk_text</code>, ~4000 chars, 250 overlap) mined one by one and the
+      people <strong>unioned</strong> (<code>merge_extracted_people</code>), instead of a
+      single arbitrary <code>text[:N]</code> cut that hid everyone named later in the file
+      (the 15&nbsp;kB "89. Memorandum for the Record" names attendees far past any fixed cut).
+      Applies to the LLM path — <code>--no-llm</code> stays the rough capitalised-run
+      fallback and should not be used to re-mine real data.</td></tr>
+    <tr><td>External grounding (backlog #2)</td><td><strong>Wikidata + Wikipedia links.</strong>
+      <code>cast-manager enrich</code> resolves each character's name against the Wikidata
+      API (<code>wbsearchentities</code> → <code>wbgetentities</code> sitelinks, Spanish
+      Wikipedia preferred), routed through the <a href="gatekeeper.html">Gatekeeper</a> like
+      every outbound request. Stores <code>wikidata_id</code>, <code>wikipedia_url</code> and
+      the Wikidata <code>wikidata_desc</code> (shown on the cast detail as external links +
+      a grounding hint). <code>wikidata_checked_at</code> makes it idempotent and
+      self-terminating; the pure parsers are offline-tested. Also a natural future source
+      of birth/death dates and the political compass (item 3).</td></tr>
+    <tr><td>External analysis (F1)</td><td><strong>Linked → analyzed.</strong>
+      <code>cast-manager analyze</code> mines what <code>enrich</code> linked, via the
+      Gatekeeper. <em>Wikidata</em> (no LLM): <code>wbgetentities</code> claims — P39
+      positions (with P580 start dates), P102 party, P106 occupation — become timeline
+      facts (labels resolved es→en in one batched call); P569/P570 fill or
+      precision-upgrade <code>birth_date</code>/<code>death_date</code>; a birth after
+      1973 (<code>wikidata_identity_plausible</code>) means a homonym and <strong>de-links</strong>
+      the character (keeping <code>wikidata_checked_at</code> so enrich doesn't re-link it).
+      <em>Wikipedia</em> (Gemma): the article's plain-text extract →
+      <code>parse_analysis_response</code> → a one-paragraph <code>biography</code> (only
+      when none exists) + dated facts. Each side stamps <code>wikidata_analyzed_at</code> /
+      <code>wikipedia_analyzed_at</code> — the strict metric's external gates — and
+      recomputes completeness. Fetch/LLM failures leave no stamp (retried next run);
+      stamped rows are never re-queried, so runs are idempotent and self-terminating.</td></tr>
+    <tr><td>Statements &amp; rumors (F2)</td><td><strong>Narrative extraction.</strong>
+      The extraction prompt also captures what a person <em>said</em>
+      (<code>kind='statement'</code>, qualified by its Searle/Flores
+      <code>speech_act</code>: assertive / directive / commissive / expressive /
+      declarative) and hearsay <em>about</em> them (<code>kind='rumor'</code>). Hard rules
+      in <code>_clean_fact</code>: an unattributed rumor is rejected outright
+      (<code>reported_by</code> is mandatory), and a rumor without an explicit
+      <code>confidence</code> defaults to a low 0.3. Narrative kinds never dedupe against
+      the information kinds (<code>_fact_kinds_compatible</code> excludes them from the
+      <code>"other"</code> wildcard), so a quote is never collapsed into a profile fact.
+      Backfill over already-mined documents: <code>cast-manager run --re-extract</code>.
+      The admin timeline renders statements as «quotes» with their act and rumors dimmed
+      with "— según <em>reported_by</em>". These two kinds complete the four narrative
+      groups the completeness diversity gate requires.</td></tr>
+    <tr><td>Validity filter (backlog #6)</td><td><strong>Deterministic, no LLM.</strong>
+      <code>is_plausible_person_name()</code> rejects names that are entirely boilerplate,
+      bare titles, months, organisations/places or function words, <strong>or that open with
+      an institution designator</strong> ("Banco Edwards", "Radio Magallanes" —
+      <code>_ORG_DESIGNATOR_STARTS</code>) — while keeping real people, including
+      surname-only ("Lanusse") and title-prefixed ("General Carlos Prats")
+      forms. It <em>gates extraction</em> (never stores garbage, LLM or heuristic alike) and
+      backs <code>cast-manager clean</code> (dry-run by default; <code>--apply</code> deletes
+      the implausible characters and cascades to mentions/facts/relations). Chosen over an
+      LLM verifier — the garbage is obvious and a deterministic filter is faster and free.</td></tr>
+    <tr><td>Propositor signal</td><td><strong>Polled query — wired.</strong> New characters carry
+      <code>needs_research = 1</code>; <code>fetch_characters_needing_research()</code> exposes
+      that queue. The <a href="agent-propositor.html">Propositor</a> consumes it every cycle,
+      minting <code>kind='entity'</code> missions and clearing the flag.</td></tr>
+    <tr><td>De-dup / coreference</td><td><strong>Two layers.</strong> (1)
+      <code>character_key()</code> slugifies exact forms. (2) <code>resolve_character_key()</code>
+      unifies surface forms of the same person: name extensions match as ordered token
+      subsequences with initials ("Salvador Allende" ↔ "Salvador Allende Gossens",
+      "Henry A. Kissinger" ↔ "Henry Kissinger"), and surname-only mentions ("Allende",
+      "Kissinger") match only when exactly ONE character carries that surname —
+      ambiguity (Salvador vs Beatriz Allende) never merges. The fullest form becomes the
+      canonical <code>name</code>; the rest accrue in <code>aliases</code>. A self-healing
+      <strong>merge pass</strong> (<code>merge_duplicate_characters()</code>, cluster-level
+      union-find with the same rules) runs at the end of every cycle and via
+      <code>cast-manager merge</code>, re-pointing mentions/facts/entity missions to the
+      survivor. <strong>Only person-shaped forms anchor a match</strong>
+      (<code>_looks_like_person</code>): an organisation form or alias ("Banco Edwards")
+      can never bridge a person into that character — the regression that once absorbed
+      Agustín Edwards into the bank. <em>Follow-up:</em> strip honorifics ("Senator Jarpa",
+      "Ambassador Korry") so the canonical name is the bare person.</td></tr>
+    <tr><td>Life dates &amp; timeline chart</td><td>Each character carries optional
+      <code>birth_date</code> / <code>death_date</code> (LLM-extracted when a document
+      states them; the most precise value wins and survives merges). The admin
+      <code>/cast-manager</code> page renders an <strong>SVG life-line</strong> spanning
+      birth→death (falling back to the dated-fact range), with the <strong>1970–1973
+      Cybersyn period always highlighted</strong> and a lollipop marker per dated fact
+      (coloured by kind). The span maths are pure, testable helpers in
+      <code>admin/routers/cast.py</code> (<code>_year_fraction</code>,
+      <code>_timeline_span</code>) — tolerant of corpus quirks ("1970-1973", "1970-00").</td></tr>
+    <tr><td>Timeline fact dedup</td><td>The same fact restated across documents ("President
+      of Chile" / "Presidente de la República" / "asumió la presidencia") collapses into
+      one row. <code>facts_are_duplicates()</code> compares content-token signatures
+      (stopwords removed, <strong>bilingual es↔en canonicalisation</strong>:
+      president/presidencia/presidential → presidente, etc.) with a ≥0.8 containment
+      test; <code>"other"</code> acts as a kind wildcard (the LLM labels the same fact
+      inconsistently). Two layers: insert-time skip (a restatement's date backfills an
+      undated existing fact) and the <code>dedupe_timeline_facts()</code> pass — greedy
+      clustering per (character, kind), survivor = richest description + earliest date —
+      which runs after character merging in every cycle and in
+      <code>cast-manager merge</code>.</td></tr>
+    <tr><td>Completeness score (strict)</td><td><code>compute_completeness()</code> takes a
+      <code>CompletenessInputs</code> and returns a <code>CompletenessResult</code> (score +
+      breakdown, persisted as <code>completeness_detail</code> JSON). Weighted components:
+      <strong>identity</strong> 0.15 (⅓ bio + ⅓ a role fact + ⅓ vital dates) ·
+      <strong>documentary base</strong> 0.20 (mentions / 8) ·
+      <strong>external linking</strong> 0.25 (Wikidata 0.125 + Wikipedia 0.125; linked-but-not-analyzed
+      earns only 0.06 each) · <strong>timeline richness</strong> 0.30 (0.5·facts/12 +
+      0.35·kind-group diversity + 0.15·dated-month spread, target 6 in-window months) ·
+      <strong>pipeline passage</strong> 0.10 (extracted + ≥1 done entity mission).
+      <strong>Hard gates</strong> then cap the total: no external source analyzed → ≤0.60;
+      fewer than 3 of the 4 kind groups (<em>actions=event, statements, information=role/affiliation/other,
+      rumors</em>) → ≤0.75; no completed entity mission → ≤0.80. Complete = ≥0.85
+      (<code>_COMPLETE_THRESHOLD</code>) — unreachable without going through the whole
+      research pipeline. All weights/targets are named constants at the top of the module.</td></tr>
+  </table>
+
+  <h3>CLI</h3>
+  <pre><code>uv run cast-manager run [--batch 50] [--all] [--no-llm]
+uv run cast-manager enrich [--limit 200]     # link Wikidata/Wikipedia (Gatekeeper)
+uv run cast-manager analyze [--limit 50] [--no-llm]   # mine claims + article (Gatekeeper, Gemma)
+uv run cast-manager politics [--limit 200]
+uv run cast-manager score                     # bulk re-score under the current constants
+uv run cast-manager status</code></pre>
+  <p><strong>Calibration:</strong> cached scores go stale whenever the metric's constants
+    change — <code>cast-manager score</code> (or <code>make cast-score</code>) recomputes
+    every character, persists fresh breakdowns and re-evaluates <code>needs_research</code>
+    (deflated characters re-enter the queue). It runs at the end of
+    <code>make pipeline-characters</code>. The admin sidebar shows the score
+    <strong>distribution histogram</strong> and per-gate counts to judge whether the
+    weights/targets need tuning against real data.</p>
+  <p>Under <code>make pipeline</code> the run records a <code>cast_manager</code> stage against
+    the active <code>run_id</code>, and stamps newly-added characters with that run id (for the
+    Results page). See <a href="data-model.html#run-tracking">run tracking</a>.</p>
+
+  <div class="callout pending">
+    <span class="label">⚠ Still to come (separate items)</span>
+    <ul>
+      <li>Biography synthesis from the <em>archive's own documents</em> (Wikipedia analysis
+        now writes a bio when one exists; a <code>cast-manager biography</code> pass over
+        the character's mentions would cover the characters Wikipedia doesn't).</li>
+    </ul>
+    <p><strong>Done:</strong> the Propositor entity-missions wiring
+      (<a href="agent-propositor.html">Propositor</a>), the admin
+      <strong>Cast Manager page</strong> at <code>/cast-manager</code>
+      (<a href="admin.html">Admin</a>), <strong>Wikidata/Wikipedia links</strong>
+      (<code>cast-manager enrich</code>), <strong>Wikidata/Wikipedia analysis</strong>
+      (<code>cast-manager analyze</code> — claims + article → profile/timeline, stamping
+      the <code>*_analyzed_at</code> gates), <strong>statement/rumor extraction</strong>
+      (see mechanics below) and the <strong>political compass</strong>
+      (<code>cast-manager politics</code>).</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-cast-director.html">Cast Director</a>
+    <a href="agent-mapper.html">Mapper</a>
+    <a href="agent-propositor.html">Propositor</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

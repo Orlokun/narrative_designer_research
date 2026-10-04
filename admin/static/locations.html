@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lugares — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444; --blue: #60a5fa;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; display: flex; flex-direction: column; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-shrink: 0; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+
+.main { display: grid; grid-template-columns: 290px 1fr; flex: 1; overflow: hidden; }
+.sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.search-box { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.search-box input {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--font); font-size: 11px; padding: 5px 8px; border-radius: 2px;
+}
+.search-box input:focus { outline: none; border-color: var(--accent-dim); }
+.loc-count { padding: 4px 12px; font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.loc-list { overflow-y: auto; flex: 1; }
+.loc-row { padding: 8px 12px; border-bottom: 1px solid var(--panel-2); cursor: pointer; }
+.loc-row:hover { background: var(--panel-2); }
+.loc-row.selected { background: var(--panel-2); border-left: 2px solid var(--accent); padding-left: 10px; }
+.loc-name { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.loc-name .sc { color: var(--text-mid); font-size: 10px; flex-shrink: 0; }
+.loc-kind { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; }
+.score-track { height: 3px; background: var(--panel-2); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 2px; }
+.empty { padding: 24px 14px; color: var(--text-dim); text-align: center; }
+
+.content { overflow-y: auto; padding: 14px 18px; }
+.map-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; margin-bottom: 14px; }
+.map-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.map-legend { display: flex; gap: 10px; flex-wrap: wrap; }
+.map-legend span::before { content: '●'; margin-right: 3px; }
+#map-svg { display: block; width: 100%; height: 340px; }
+#map-svg text { font-family: var(--font); }
+.map-dot { cursor: pointer; }
+.map-dot:hover { stroke: var(--accent); stroke-width: 2; }
+.graticule { stroke: #1c1c1c; stroke-width: 1; }
+.grat-label { fill: #3a3a3a; font-size: 8px; }
+
+.detail { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 14px 16px; }
+.detail h2 { font-size: 15px; letter-spacing: 1px; font-weight: normal; }
+.kind-chip { display: inline-block; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; border: 1px solid var(--border); padding: 0 6px; border-radius: 2px; color: var(--text-mid); margin-left: 8px; vertical-align: middle; }
+.ext-links { margin-left: 10px; }
+.ext-link { color: var(--blue); font-size: 9px; text-decoration: none; margin-right: 8px; }
+.desc { margin-top: 8px; color: var(--text); }
+.desc.missing { color: var(--text-dim); font-style: italic; }
+.meta-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 10px; color: var(--text-mid); }
+.meta-row b { color: var(--text); }
+.char-link { color: var(--blue); text-decoration: none; }
+.char-link:hover { text-decoration: underline; }
+.section { margin-top: 14px; }
+.section-title { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 3px; margin-bottom: 6px; }
+.facts { list-style: none; }
+.facts li { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--panel-2); }
+.facts li:last-child { border-bottom: none; }
+.f-date { width: 74px; flex-shrink: 0; color: var(--text-dim); }
+.f-kind { width: 92px; flex-shrink: 0; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; padding-top: 1px; }
+.f-kind-description { color: var(--blue); }
+.f-kind-appreciation { color: var(--warn); }
+.f-kind-event { color: var(--ok); }
+.f-kind-data { color: var(--text-mid); }
+.f-appr { font-style: italic; }
+.doc-link { color: var(--blue); text-decoration: none; }
+.doc-link:hover { text-decoration: underline; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.gallery figure { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+.gallery a.img-link { display: block; }
+.gallery img { display: block; width: 100%; height: 120px; object-fit: cover; background: var(--bg); }
+.gallery figcaption { padding: 4px 8px; font-size: 9px; color: var(--text-dim); display: flex; justify-content: space-between; gap: 6px; }
+.gallery figcaption .src { text-transform: uppercase; letter-spacing: .5px; flex-shrink: 0; }
+.gallery figcaption a { color: var(--blue); text-decoration: none; }
+.gallery-note { margin-top: 6px; font-size: 9px; color: var(--text-dim); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; padding: 3px 6px; border-bottom: 1px solid var(--border); }
+td { padding: 4px 6px; border-bottom: 1px solid var(--panel-2); }
+.dim { color: var(--text-dim); }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-4 LUGARES</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="main">
+
+  <!-- Sidebar: searchable location list -->
+  <aside class="sidebar">
+    <div class="search-box">
+      <input type="search" id="search" placeholder="Buscar lugar…" autocomplete="off">
+    </div>
+    <div class="loc-count" id="loc-count">—</div>
+    <div class="loc-list" id="loc-list"><div class="empty">Cargando…</div></div>
+  </aside>
+
+  <!-- Map + detail -->
+  <div class="content">
+    <div class="map-panel">
+      <div class="map-head">
+        <span id="map-title">Mapa — coordenadas Wikidata</span>
+        <div class="map-legend" id="map-legend"></div>
+      </div>
+      <svg id="map-svg" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="detail" id="detail">
+      <div class="dim">Selecciona un lugar de la lista o un punto del mapa.</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/static/nav.js" defer></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const KIND_COLORS = {
+  building: '#f59e0b', factory: '#ef4444', residence: '#a78bfa', city: '#60a5fa',
+  region: '#2dd4bf', street: '#eab308', office: '#f472b6', other: '#888888',
+};
+const KIND_LABELS = {
+  building: 'edificio', factory: 'fábrica', residence: 'residencia', city: 'ciudad',
+  region: 'región', street: 'calle', office: 'oficina', other: 'otro',
+};
+
+let allLocations = [];
+let selectedId = null;
+
+function compColor(score) {
+  if (score >= 0.85) return 'var(--ok)';
+  if (score >= 0.5) return 'var(--warn)';
+  return 'var(--error)';
+}
+
+// ── Map: self-contained SVG coordinate plot (no external tiles) ──────────────
+// Equirectangular with a cos(mid-latitude) x-correction; bounds auto-fit the
+// plotted points with padding, so Santiago-heavy data zooms in naturally.
+
+const MAP_W = 900, MAP_H = 340, PAD = 34;
+
+function renderMap() {
+  const svg = $('map-svg');
+  const located = allLocations.filter(l => l.latitude != null && l.longitude != null);
+  const missing = allLocations.length - located.length;
+  $('map-title').textContent = located.length
+    ? `Mapa — ${located.length} con coordenadas${missing ? ` · ${missing} sin ubicar` : ''}`
+    : 'Mapa — sin lugares con coordenadas aún (corre location-manager analyze)';
+  if (!located.length) { svg.innerHTML = ''; renderLegend([]); return; }
+
+  let minLat = Math.min(...located.map(l => l.latitude));
+  let maxLat = Math.max(...located.map(l => l.latitude));
+  let minLon = Math.min(...located.map(l => l.longitude));
+  let maxLon = Math.max(...located.map(l => l.longitude));
+  // A lone point (or a tight cluster) still deserves a sane window.
+  if (maxLat - minLat < 0.5) { minLat -= 0.25; maxLat += 0.25; }
+  if (maxLon - minLon < 0.5) { minLon -= 0.25; maxLon += 0.25; }
+
+  const midLat = (minLat + maxLat) / 2;
+  const kx = Math.cos(midLat * Math.PI / 180);  // longitude compression at this latitude
+  const spanX = (maxLon - minLon) * kx, spanY = maxLat - minLat;
+  const scale = Math.min((MAP_W - 2 * PAD) / spanX, (MAP_H - 2 * PAD) / spanY);
+  const x = lon => PAD + ((lon - minLon) * kx) * scale
+    + ((MAP_W - 2 * PAD) - spanX * scale) / 2;
+  const y = lat => PAD + (maxLat - lat) * scale
+    + ((MAP_H - 2 * PAD) - spanY * scale) / 2;
+
+  // Graticule: ~4 lines per axis at a round step.
+  const step = v => {
+    const raw = v / 4;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 5, 10]) if (raw <= m * pow) return m * pow;
+    return 10 * pow;
+  };
+  const latStep = step(spanY), lonStep = step(maxLon - minLon);
+  let g = '';
+  for (let lat = Math.ceil(minLat / latStep) * latStep; lat <= maxLat; lat += latStep) {
+    g += `<line class="graticule" x1="${PAD}" y1="${y(lat)}" x2="${MAP_W - PAD}" y2="${y(lat)}"/>`
+       + `<text class="grat-label" x="4" y="${y(lat) + 3}">${lat.toFixed(1)}°</text>`;
+  }
+  for (let lon = Math.ceil(minLon / lonStep) * lonStep; lon <= maxLon; lon += lonStep) {
+    g += `<line class="graticule" x1="${x(lon)}" y1="${PAD}" x2="${x(lon)}" y2="${MAP_H - PAD}"/>`
+       + `<text class="grat-label" x="${x(lon) + 2}" y="${MAP_H - 4}">${lon.toFixed(1)}°</text>`;
+  }
+
+  const dots = located.map(l => {
+    const sel = l.location_id === selectedId;
+    const color = KIND_COLORS[l.kind] || KIND_COLORS.other;
+    const r = sel ? 7 : 4 + Math.min(3, l.mention_count);
+    return `<circle class="map-dot" data-id="${esc(l.location_id)}"
+      cx="${x(l.longitude)}" cy="${y(l.latitude)}" r="${r}"
+      fill="${color}" fill-opacity="${sel ? 1 : 0.75}"
+      ${sel ? 'stroke="var(--accent)" stroke-width="2"' : ''}>
+      <title>${esc(l.name)} (${esc(KIND_LABELS[l.kind] || l.kind)}) — ${l.latitude.toFixed(3)}, ${l.longitude.toFixed(3)}</title>
+    </circle>`;
+  }).join('');
+
+  svg.innerHTML = g + dots;
+  svg.querySelectorAll('.map-dot').forEach(dot =>
+    dot.addEventListener('click', () => selectLocation(dot.dataset.id)));
+  renderLegend([...new Set(located.map(l => l.kind))]);
+}
+
+function renderLegend(kinds) {
+  $('map-legend').innerHTML = kinds.map(k =>
+    `<span style="color:${KIND_COLORS[k] || KIND_COLORS.other}">${esc(KIND_LABELS[k] || k)}</span>`
+  ).join('');
+}
+
+// ── Sidebar list ─────────────────────────────────────────────────────────────
+
+async function loadList() {
+  const q = $('search').value.trim();
+  const r = await fetch('/api/locations' + (q ? `?search=${encodeURIComponent(q)}` : ''));
+  if (!r.ok) return;
+  const d = await r.json();
+  allLocations = d.locations || [];
+
+  if (!d.available || !d.total) {
+    $('loc-count').textContent = '0 lugares';
+    $('loc-list').innerHTML = `<div class="empty">${d.available
+      ? 'Sin lugares' + (q ? ' para esa búsqueda.' : ' aún — ejecuta el location-manager.')
+      : 'Sin base de datos — ejecuta el pipeline primero.'}</div>`;
+    renderMap();
+    return;
+  }
+
+  $('loc-count').textContent =
+    `${d.total} lugar${d.total === 1 ? '' : 'es'} · ${d.complete} completos · ${d.with_coordinates} ubicados`;
+  $('loc-list').innerHTML = allLocations.map(l => `
+    <div class="loc-row ${l.location_id === selectedId ? 'selected' : ''}" data-id="${esc(l.location_id)}">
+      <div class="loc-name">
+        <span>${esc(l.name)}</span>
+        <span class="sc">${l.completeness_score.toFixed(2)}</span>
+      </div>
+      <div class="loc-kind">${esc(KIND_LABELS[l.kind] || l.kind)}${l.latitude != null ? ' · 📍' : ''}${l.needs_research ? ' · ⌕' : ''}</div>
+      <div class="score-track"><div class="score-fill"
+        style="width:${Math.max(l.completeness_score * 100, 2)}%;background:${compColor(l.completeness_score)}"></div></div>
+    </div>`).join('');
+  $('loc-list').querySelectorAll('.loc-row').forEach(row =>
+    row.addEventListener('click', () => selectLocation(row.dataset.id)));
+  renderMap();
+}
+
+// ── Detail ───────────────────────────────────────────────────────────────────
+
+async function selectLocation(locationId) {
+  selectedId = locationId;
+  history.replaceState(null, '', `?loc=${encodeURIComponent(locationId)}`);
+  document.querySelectorAll('.loc-row').forEach(row =>
+    row.classList.toggle('selected', row.dataset.id === locationId));
+  renderMap();
+
+  const r = await fetch(`/api/locations/${encodeURIComponent(locationId)}`);
+  if (!r.ok) { $('detail').innerHTML = '<div class="dim">Lugar no encontrado.</div>'; return; }
+  const d = await r.json();
+  const l = d.location;
+
+  const ext = [];
+  if (l.wikipedia_url)
+    ext.push(`<a class="ext-link" href="${esc(l.wikipedia_url)}" target="_blank" rel="noopener">Wikipedia ↗</a>`);
+  if (l.wikidata_id)
+    ext.push(`<a class="ext-link" href="https://www.wikidata.org/wiki/${esc(l.wikidata_id)}" target="_blank" rel="noopener" title="${esc(l.wikidata_desc || '')}">Wikidata ${esc(l.wikidata_id)} ↗</a>`);
+
+  const facts = (d.facts || []).length ? `
+    <ul class="facts">
+      ${d.facts.map(f => {
+        let detail = esc(f.detail);
+        if (f.kind === 'appreciation') {
+          detail = `<span class="f-appr">«${detail}»</span>${f.reported_by
+            ? ` <span class="dim">— según ${esc(f.reported_by)}</span>` : ''}`;
+        }
+        return `
+        <li>
+          <span class="f-date">${esc(f.date_iso || 's/f')}</span>
+          <span class="f-kind f-kind-${esc(f.kind)}">${esc(f.kind)}</span>
+          <span>${detail}${f.doc_id
+            ? ` <a class="doc-link" href="/archivero?doc=${encodeURIComponent(f.doc_id)}" title="Leer el documento fuente">¶</a>`
+            : ''}</span>
+        </li>`;
+      }).join('')}
+    </ul>` : '<div class="dim">Sin hechos registrados aún.</div>';
+
+  const gallery = (d.images || []).length ? `
+    <div class="gallery">
+      ${d.images.map(img => `
+        <figure>
+          <a class="img-link" href="${esc(img.page_url || img.url)}" target="_blank" rel="noopener"
+             title="${esc(img.caption || 'Ver en Wikimedia Commons')}">
+            <img src="${esc(img.url)}" loading="lazy" alt="${esc(img.caption || l.name)}"
+                 onerror="this.closest('figure').style.display='none'">
+          </a>
+          <figcaption>
+            <span>${esc(img.caption || '')}</span>
+            <span class="src"><a href="${esc(img.page_url || img.url)}" target="_blank" rel="noopener">${esc(img.source)} ↗</a></span>
+          </figcaption>
+        </figure>`).join('')}
+    </div>
+    <div class="gallery-note">Imágenes servidas desde Wikimedia Commons (requieren conexión); el enlace abre la página del archivo con su licencia y atribución.</div>`
+    : '<div class="dim">Sin imágenes aún — llegan con location-manager analyze (Wikidata P18 + imagen del artículo).</div>';
+
+  const docs = (d.documents || []).length ? `
+    <table>
+      <thead><tr><th>Documento</th></tr></thead>
+      <tbody>${d.documents.map(doc => `
+        <tr><td><a class="doc-link" href="/archivero?doc=${encodeURIComponent(doc.doc_id)}">${esc(doc.title)}</a></td></tr>`).join('')}
+      </tbody>
+    </table>` : '<div class="dim">Sin documentos vinculados.</div>';
+
+  $('detail').innerHTML = `
+    <h2>${esc(l.name)}<span class="kind-chip">${esc(KIND_LABELS[l.kind] || l.kind)}</span>${ext.length ? `<span class="ext-links">${ext.join('')}</span>` : ''}</h2>
+    <div class="desc ${l.description ? '' : 'missing'}">
+      ${l.description ? esc(l.description) : 'Descripción pendiente — llega con location-manager analyze.'}
+    </div>
+    <div class="meta-row">
+      <span>completitud: <b>${l.completeness_score.toFixed(2)}</b></span>
+      <span>menciones: <b>${l.mention_count}</b></span>
+      ${l.latitude != null ? `<span>coords: <b>${l.latitude.toFixed(4)}, ${l.longitude.toFixed(4)}</b></span>` : ''}
+      ${l.character_id ? `<span>vinculado a <a class="char-link" href="/cast-manager?char=${encodeURIComponent(l.character_id)}">${esc(l.character_name || l.character_id)}</a></span>` : ''}
+      ${l.needs_research ? '<span style="color:var(--blue)">⌕ en cola de investigación del Propositor</span>' : ''}
+    </div>
+    <div class="section"><div class="section-title">Galería</div>${gallery}</div>
+    <div class="section"><div class="section-title">Hechos</div>${facts}</div>
+    <div class="section"><div class="section-title">Documentos que lo mencionan</div>${docs}</div>`;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+let searchTimer = null;
+$('search').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadList, 250);
+});
+
+(async () => {
+  $('updated').textContent = new Date().toLocaleTimeString('es-CL');
+  await loadList();
+  const locId = new URLSearchParams(location.search).get('loc');
+  if (locId) await selectLocation(locId);
+})();
+</script>
+</body>
+</html>

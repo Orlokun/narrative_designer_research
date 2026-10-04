@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propositor — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444; --blue: #60a5fa;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; letter-spacing: .5px; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.page { max-width: 1100px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; min-width: 120px; text-align: center; }
+.card-val { font-size: 24px; color: var(--accent); display: block; line-height: 1; }
+.card-val.ok    { color: var(--ok); }
+.card-val.warn  { color: var(--warn); }
+.card-val.error { color: var(--error); }
+.card-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+th { color: var(--text-dim); font-weight: normal; text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: .5px; }
+td { padding: 4px 6px; border-bottom: 1px solid #181818; }
+tr:last-child td { border-bottom: none; }
+.num { text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+.dim { color: var(--text-dim); }
+.bar-bg { background: #1c1c1c; height: 5px; border-radius: 2px; width: 80px; display: inline-block; vertical-align: middle; }
+.bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">RE-1 PROPOSITOR</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="page">
+
+  <!-- Coverage summary -->
+  <div class="section">
+    <div class="sec-title">Cobertura de la matriz 16 × 48</div>
+    <div class="cards">
+      <div class="card"><span class="card-val" id="total-cells">768</span><span class="card-lbl">celdas totales</span></div>
+      <div class="card"><span class="card-val ok" id="covered-cells">—</span><span class="card-lbl">celdas cubiertas</span></div>
+      <div class="card"><span class="card-val warn" id="gap-cells">—</span><span class="card-lbl">celdas vacías</span></div>
+      <div class="card"><span class="card-val" id="cov-pct">—</span><span class="card-lbl">% cobertura</span></div>
+    </div>
+  </div>
+
+  <!-- Mission status -->
+  <div class="section">
+    <div class="sec-title">Estado de misiones</div>
+    <div class="cards">
+      <div class="card"><span class="card-val warn" id="m-pending">—</span><span class="card-lbl">pendiente</span></div>
+      <div class="card"><span class="card-val" style="color:var(--blue)" id="m-running">—</span><span class="card-lbl">en proceso</span></div>
+      <div class="card"><span class="card-val ok" id="m-done">—</span><span class="card-lbl">completada</span></div>
+      <div class="card"><span class="card-val error" id="m-failed">—</span><span class="card-lbl">fallida</span></div>
+    </div>
+  </div>
+
+  <!-- Missions by category -->
+  <div class="section">
+    <div class="sec-title">Misiones por categoría</div>
+    <table>
+      <thead><tr><th>Categoría</th><th class="num">Done</th><th class="num">Pend.</th><th class="num">Fallida</th><th>Progreso</th></tr></thead>
+      <tbody id="cat-body"><tr><td colspan="5" class="dim">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Top gaps -->
+  <div class="section">
+    <div class="sec-title">Top 20 brechas de cobertura (pendientes)</div>
+    <table>
+      <thead><tr><th>Categoría</th><th>Mes</th><th class="num">Prioridad</th><th class="num">Cobertura</th></tr></thead>
+      <tbody id="gaps-body"><tr><td colspan="4" class="dim">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+async function refresh() {
+  try {
+    const r = await fetch('/api/agents/propositor');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.available) return;
+
+    const m = d.missions_by_status || {};
+    $('m-pending').textContent = m.pending ?? '—';
+    $('m-running').textContent = m.running ?? '—';
+    $('m-done').textContent    = m.done    ?? '—';
+    $('m-failed').textContent  = m.failed  ?? '—';
+
+    $('covered-cells').textContent = d.covered_cells ?? '—';
+    const gap = 768 - (d.covered_cells || 0);
+    $('gap-cells').textContent = gap;
+    $('cov-pct').textContent = d.covered_cells != null
+      ? (d.covered_cells / 768 * 100).toFixed(1) + '%' : '—';
+
+    // Category table
+    const rows = d.missions_by_category || [];
+    $('cat-body').innerHTML = rows.length ? rows.map(r => {
+      const total = (r.done||0) + (r.pending||0) + (r.failed||0) + (r.running||0);
+      const pct   = total > 0 ? Math.round((r.done||0) / total * 100) : 0;
+      return `<tr>
+        <td>${r.category}</td>
+        <td class="num ok">${r.done||0}</td>
+        <td class="num warn">${r.pending||0}</td>
+        <td class="num error">${r.failed||0}</td>
+        <td><span class="bar-bg"><span class="bar-fill" style="width:${pct}%"></span></span> <span class="dim">${pct}%</span></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="dim">Sin datos</td></tr>';
+
+    // Gaps table
+    const gaps = d.top_gaps || [];
+    $('gaps-body').innerHTML = gaps.length ? gaps.map(g => `<tr>
+      <td>${g.category}</td>
+      <td>${g.month_iso}</td>
+      <td class="num">${(g.priority||0).toFixed(3)}</td>
+      <td class="num">${((g.coverage_score||0)*100).toFixed(0)}%</td>
+    </tr>`).join('') : '<tr><td colspan="4" class="dim">Sin brechas pendientes</td></tr>';
+
+    $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+  } catch(e) { console.error(e); }
+}
+refresh();
+setInterval(refresh, 15_000);
+</script>
+</body>
+</html>

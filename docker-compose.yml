@@ -1,0 +1,39 @@
+services:
+
+  gatekeeper:
+    build: .
+    command: ["uv", "run", "gatekeeper"]
+    ports:
+      - "8001:8001"
+    environment:
+      GATEKEEPER_HOST: "0.0.0.0"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  admin:
+    build: .
+    command: ["uv", "run", "admin"]
+    ports:
+      - "8080:8080"
+    environment:
+      ADMIN_HOST: "0.0.0.0"
+      GATEKEEPER_HOST: "gatekeeper"   # Docker service name for inter-container routing
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      gatekeeper:
+        condition: service_healthy
+    restart: unless-stopped

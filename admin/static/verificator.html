@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificator — CyberSyn Admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #090909; --panel: #111111; --panel-2: #161616;
+  --border: #252525; --accent: #f59e0b; --accent-dim: #78350f;
+  --text: #d4d4d4; --text-dim: #5a5a5a; --text-mid: #888;
+  --ok: #22c55e; --warn: #eab308; --error: #ef4444;
+  --font: 'Courier New', 'Menlo', 'Consolas', monospace;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 11px; line-height: 1.5; min-height: 100vh; }
+header { background: var(--panel); border-bottom: 1px solid var(--accent); padding: 0 20px; height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.header-title { font-size: 13px; letter-spacing: 3px; color: var(--accent); }
+.back-link { color: var(--text-mid); font-size: 10px; text-decoration: none; }
+.back-link:hover { color: var(--accent); }
+.updated { font-size: 9px; color: var(--text-dim); }
+.page { max-width: 1000px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.section { background: var(--panel); border: 1px solid var(--border); border-radius: 3px; padding: 12px 14px; }
+.sec-title { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px; padding: 10px 14px; min-width: 120px; text-align: center; }
+.card-val { font-size: 24px; color: var(--accent); display: block; line-height: 1; }
+.card-val.ok { color: var(--ok); } .card-val.warn { color: var(--warn); } .card-val.error { color: var(--error); }
+.card-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+th { color: var(--text-dim); font-weight: normal; text-align: left; padding: 3px 6px; border-bottom: 1px solid var(--border); font-size: 9px; letter-spacing: .5px; }
+td { padding: 4px 6px; border-bottom: 1px solid #181818; }
+tr:last-child td { border-bottom: none; }
+.num { text-align: right; color: var(--accent); font-variant-numeric: tabular-nums; }
+.dim { color: var(--text-dim); }
+/* Histogram */
+.histogram { display: flex; align-items: flex-end; gap: 6px; height: 100px; padding: 4px 0 24px; position: relative; }
+.hist-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.hist-bar-wrap { flex: 1; display: flex; align-items: flex-end; width: 100%; }
+.hist-bar { width: 100%; border-radius: 2px 2px 0 0; transition: height .5s ease; min-height: 2px; }
+.hist-label { font-size: 8px; color: var(--text-dim); text-align: center; white-space: nowrap; }
+.hist-count { font-size: 9px; color: var(--text-mid); text-align: center; }
+.threshold-line { position: absolute; bottom: 24px; border-left: 1px dashed var(--warn); height: 100px; }
+.threshold-label { position: absolute; bottom: 26px; font-size: 8px; color: var(--warn); }
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+<script src="/static/nav.js" defer></script>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <a href="/" class="back-link" title="Inicio">◈</a>
+    <div class="header-title">AG-2 VERIFICATOR</div>
+  </div>
+  <nav class="main-nav" id="main-nav"></nav>
+  <span class="updated" id="updated" style="flex-shrink:0;margin-left:12px">—</span>
+</header>
+
+<div class="page">
+
+  <!-- Counts -->
+  <div class="section">
+    <div class="sec-title">Estado de verificación</div>
+    <div class="cards">
+      <div class="card"><span class="card-val ok" id="c-verified">—</span><span class="card-lbl">verificados</span></div>
+      <div class="card"><span class="card-val error" id="c-rejected">—</span><span class="card-lbl">rechazados</span></div>
+      <div class="card"><span class="card-val warn" id="c-pending">—</span><span class="card-lbl">pendientes</span></div>
+      <div class="card"><span class="card-val" id="c-avg">—</span><span class="card-lbl">score promedio</span></div>
+      <div class="card"><span class="card-val" id="c-threshold">—</span><span class="card-lbl">umbral mínimo</span></div>
+    </div>
+  </div>
+
+  <!-- Score distribution histogram -->
+  <div class="section">
+    <div class="sec-title">Distribución de scores (quality_score)</div>
+    <div id="histogram-wrap">
+      <div class="histogram" id="histogram"></div>
+    </div>
+    <div style="font-size:9px;color:var(--text-dim);margin-top:6px">
+      Línea punteada = umbral de aceptación (<span id="lbl-threshold">—</span>). Documentos a la derecha de la línea son verificados.
+    </div>
+  </div>
+
+  <!-- By category -->
+  <div class="section">
+    <div class="sec-title">Verificados por categoría</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th class="num">Verificados</th>
+          <th class="num">Rechazados</th>
+          <th class="num">Score avg</th>
+          <th>Aprobación</th>
+        </tr>
+      </thead>
+      <tbody id="cat-body"><tr><td colspan="5" class="dim">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+const BUCKETS  = ['0.0-0.2','0.2-0.4','0.4-0.6','0.6-0.8','0.8-1.0'];
+
+function renderHistogram(dist, threshold) {
+  const counts   = BUCKETS.map(b => dist[b] || 0);
+  const maxCount = Math.max(...counts, 1);
+  const colors   = ['var(--error)','#a16207','var(--warn)','#16a34a','var(--ok)'];
+
+  const container = $('histogram');
+  container.style.position = 'relative';
+
+  const cols = BUCKETS.map((label, i) => {
+    const h   = Math.max(2, (counts[i] / maxCount) * 100);
+    return `<div class="hist-col">
+      <div class="hist-count">${counts[i]}</div>
+      <div class="hist-bar-wrap">
+        <div class="hist-bar" style="height:${h}%;background:${colors[i]}"></div>
+      </div>
+      <div class="hist-label">${label}</div>
+    </div>`;
+  }).join('');
+
+  // Threshold line position: the 0-1 score range spans the histogram's width.
+  // Approx left offset as % of histogram width:
+  const thPct = threshold * 100;
+  container.innerHTML = cols +
+    `<div class="threshold-line" style="left:${thPct}%"></div>
+     <div class="threshold-label" style="left:calc(${thPct}% + 3px)">${threshold.toFixed(2)}</div>`;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/agents/verificator');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.available) return;
+
+    $('c-verified').textContent  = d.verified  ?? '—';
+    $('c-rejected').textContent  = d.rejected  ?? '—';
+    $('c-pending').textContent   = d.pending   ?? '—';
+    $('c-avg').textContent       = d.avg_score != null ? d.avg_score.toFixed(3) : '—';
+    const threshold = d.threshold ?? 0.6;
+    $('c-threshold').textContent = threshold.toFixed(2);
+    $('lbl-threshold').textContent = threshold.toFixed(2);
+
+    renderHistogram(d.score_distribution || {}, threshold);
+
+    const cats = d.by_category || [];
+    $('cat-body').innerHTML = cats.length ? cats.map(c => {
+      const total = (c.verified||0) + (c.rejected||0);
+      const pct   = total > 0 ? Math.round((c.verified||0) / total * 100) : 0;
+      const barColor = pct >= 70 ? 'var(--ok)' : pct >= 40 ? 'var(--warn)' : 'var(--error)';
+      return `<tr>
+        <td>${c.category}</td>
+        <td class="num" style="color:var(--ok)">${c.verified||0}</td>
+        <td class="num" style="color:var(--error)">${c.rejected||0}</td>
+        <td class="num">${c.avg_score != null ? c.avg_score.toFixed(2) : '—'}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:80px;height:5px;background:#1c1c1c;border-radius:2px">
+              <div style="width:${pct}%;height:100%;border-radius:2px;background:${barColor}"></div>
+            </div>
+            <span class="dim">${pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="5" class="dim">Sin datos de verificación</td></tr>';
+
+    $('updated').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-CL');
+  } catch(e) { console.error(e); }
+}
+refresh();
+setInterval(refresh, 15_000);
+</script>
+</body>
+</html>

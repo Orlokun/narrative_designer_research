@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coverage Matrix — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html" class="here">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › Coverage Matrix</div>
+  <h1>The 16×13×48 Coverage Matrix</h1>
+  <p class="lede">The project tracks <strong>16 thematic categories × 13 genres ×
+    48 months</strong> (Oct 1969 – Sep 1973) = 9,984 cells. The pipeline's job is to fill
+    every <em>plausible</em> cell with enough verified period sources — the genre axis is
+    what gives NPC dialogue its diversity of registers.</p>
+
+  <div class="callout protocol">
+    <span class="label">▶ Genre axis — built (June 2026)</span>
+    <p>The matrix was originally 16×48 (theme × month); the <strong>genre axis</strong>
+      made it 3D. All layers are migrated: registry (<code>lib/genres.py</code>), shared
+      coverage table (<code>lib/coverage.py</code>), Mapper genre classification,
+      Propositor 3D ranking, and the Admin theme×genre heatmap. <strong>Follow-ups:</strong>
+      re-map the existing corpus so it gains genres (<code>make remap-all</code>; until
+      then old docs sit in genre 0), and curate plausibility priors as the corpus and the
+      Cambridge key-gated APIs teach us what exists.</p>
+  </div>
+
+  <h2>Why genre?</h2>
+  <p>The simulation's end goal is LLM-driven NPC dialogue grounded in period sources. A
+    matrix cell's genre determines the <strong>speech register</strong> a document
+    contributes: a decree teaches performative legal language, a telex teaches
+    interpersonal speech acts (Flores's own theory), a poem teaches lyric idiom. Steering
+    research by genre guarantees register diversity per theme, which months alone never
+    did. Months remain as document metadata and mission-priority boosts
+    (<a href="#critical-months">critical months</a>).</p>
+
+  <h2>The 13 genres (X axis) — <code>lib/genres.py</code></h2>
+  <table>
+    <tr><th>ID</th><th>Genre</th><th>What it covers</th><th>Natural sources</th></tr>
+    <tr><td>1</td><td>Discurso</td><td>Speeches, rally addresses, radio talks.</td><td>marxists, wikisource_es, archive.org</td></tr>
+    <tr><td>2</td><td>Carta y telex</td><td>Letters, telexes, memos — incl. the Beer–Flores telexes.</td><td>archive.org, wikisource_es, marxists</td></tr>
+    <tr><td>3</td><td>Cable diplomático e inteligencia</td><td>Declassified cables, intel assessments.</td><td>frus, archive.org</td></tr>
+    <tr><td>4</td><td>Documento oficial</td><td>Decrees, laws, actas, ministerial records.</td><td>wikisource_es, archive.org</td></tr>
+    <tr><td>5</td><td>Transcripción parlamentaria y radial</td><td>Senate/Chamber sessions, broadcast transcripts.</td><td>wikisource_es, archive.org</td></tr>
+    <tr><td>6</td><td>Prensa informativa</td><td>Daily news reporting.</td><td>chronicling_america, archive.org, wikipedia_es</td></tr>
+    <tr><td>7</td><td>Prensa de opinión</td><td>Editorials, columns, satirical press (Topaze).</td><td>chronicling_america, archive.org, marxists</td></tr>
+    <tr><td>8</td><td>Informe técnico</td><td>CORFO / INTEC / ODEPLAN / Banco Central reports, Cybersyn docs.</td><td>archive.org, openalex, semantic_scholar</td></tr>
+    <tr><td>9</td><td>Artículo académico</td><td>Contemporary + retrospective scholarship.</td><td>openalex, crossref, semantic_scholar</td></tr>
+    <tr><td>10</td><td>Testimonio y memoria</td><td>Memoirs, oral histories, interviews.</td><td>archive.org, openalex, wikipedia_es</td></tr>
+    <tr><td>11</td><td>Poesía y canción</td><td>Neruda, Víctor Jara, Nueva Canción lyrics.</td><td>wikisource_es, archive.org, wikipedia_es</td></tr>
+    <tr><td>12</td><td>Narrativa y teatro</td><td>Novels, stories, plays of/about the period.</td><td>archive.org, wikisource_es, wikipedia_es</td></tr>
+    <tr><td>13</td><td>Propaganda y panfleto</td><td>Manifestos, programmes, pamphlets, poster/mural slogans.</td><td>marxists, archive.org, wikisource_es</td></tr>
+  </table>
+  <p><strong>Genre 0 = unclassified</strong> — documents mapped before the genre axis
+    existed or that the classifier could not type. Never a mission target; shown
+    separately in the admin view. The Cambridge key-gated APIs (ProQuest, Gale, JSTOR,
+    HathiTrust, BCN…) slot into the per-genre source lists as they are wired — see
+    <a href="sources.html">Sources &amp; APIs</a> and the roadmap's key-gated API step.</p>
+
+  <h2>Plausibility weights — not all cells are real</h2>
+  <p>The month axis was uniform; the genre axis is not (<em>Deporte × Cable
+    diplomático</em> is structurally near-empty). Each genre carries a default prior plus
+    per-theme overrides (<code>Genre.plausibility(category_id)</code>, 0–1). The
+    Propositor <strong>multiplies cell priority by this prior</strong>, so implausible
+    cells sink to the bottom of the queue without being hard-excluded, and weighted
+    coverage percentages use the prior as denominator weight. Priors are curatable data —
+    adjust them in <code>lib/genres.py</code> as the corpus teaches us what exists.</p>
+
+  <h2>How a cell is scored</h2>
+  <p><code>coverage_score = min(1.0, docs_found / 5)</code> — 5 verified documents in a
+    (theme, genre, month) cell counts as 100% coverage. The
+    <a href="agent-propositor.html">Propositor</a> ranks cell gaps (× plausibility) and
+    generates missions; the <a href="agent-archivero.html">Archivero</a> fills them; the
+    <a href="agent-verificator.html">Verificator</a> approves them; the
+    <a href="agent-mapper.html">Mapper</a> assigns each verified document to a precise
+    cell — theme, genre and month. The <a href="admin.html">Admin</a> heatmap shows 2D
+    projections of the cube (theme × month, theme × genre).</p>
+
+  <h2>The 16 categories (Y axis)</h2>
+  <table>
+    <tr><th>ID</th><th>Category</th><th>Scope</th></tr>
+    <tr><td>1</td><td>Política Nacional</td><td>Government ministries, parliament, parties, civil unrest.</td></tr>
+    <tr><td>2</td><td>Salud</td><td>Healthcare, public-health policy, medical services.</td></tr>
+    <tr><td>3</td><td>Economía Nacional</td><td>GDP, inflation, economic policy, fiscal matters.</td></tr>
+    <tr><td>4</td><td>Industria Nacional</td><td>State industries, nationalization, CORFO, production.</td></tr>
+    <tr><td>5</td><td>Industria Privada</td><td>Private enterprises, commerce, business.</td></tr>
+    <tr><td>6</td><td>Estados Unidos</td><td>US relations, CIA, ITT, economic blockade, US diplomacy.</td></tr>
+    <tr><td>7</td><td>Unión Soviética</td><td>Soviet relations, Cuba, communist support.</td></tr>
+    <tr><td>8</td><td>Política Internacional</td><td>International relations beyond USSR/USA, trade, diplomacy.</td></tr>
+    <tr><td>9</td><td>Educación</td><td>Education policy, schools, universities, reform.</td></tr>
+    <tr><td>10</td><td>Ciencia y Tecnología</td><td>Scientific research, technology, innovation.</td></tr>
+    <tr><td>11</td><td>Transporte</td><td>Ports, railways, aviation, trucks (1972 trucker strike).</td></tr>
+    <tr><td>12</td><td>Urbanismo y Megaproyectos</td><td>Urban planning, large construction, housing.</td></tr>
+    <tr><td>13</td><td>Política Militar</td><td>Military, armed forces, defense, the 1973 coup.</td></tr>
+    <tr><td>14</td><td>Artes y Cultura</td><td>Arts, literature, music, cultural events.</td></tr>
+    <tr><td>15</td><td>Deporte</td><td>Sports, athletes, sporting events.</td></tr>
+    <tr><td>16</td><td>Macroeconomía</td><td>Overall economic indicators, monetary policy, banking.</td></tr>
+  </table>
+
+  <h2>Source routing</h2>
+  <p>With the genre axis, missions route sources <strong>genre-first</strong>
+    (each genre's natural connectors, table above), topped up from the category's source
+    tier. The legacy category tiers remain as the fallback ordering:</p>
+  <table>
+    <tr><th>Tier</th><th>Categories</th><th>Sources</th></tr>
+    <tr><td><code>critica</code></td><td>Economía, Industria, Transporte, Macroeconomía</td><td>archive.org, openalex, crossref, wikisource_es, frus, semantic_scholar, chronicling_america, marxists, web_serp</td></tr>
+    <tr><td><code>alta</code></td><td>Política Nacional, Industria Privada, EEUU, Ciencia, Política Militar</td><td>archive.org, openalex, crossref, wikisource_es, semantic_scholar, marxists, wikipedia_es</td></tr>
+    <tr><td><code>media</code></td><td>Salud, URSS, Política Int., Educación, Urbanismo</td><td>archive.org, openalex, wikisource_es, wikipedia_es</td></tr>
+    <tr><td><code>baja</code></td><td>Artes, Deporte</td><td>openalex, wikisource_es, archive.org, wikipedia_es</td></tr>
+  </table>
+  <p><code>bn_digital</code> is excluded (returns the homepage, not search results).
+    <code>web_serp</code> (DuckDuckGo) is kept only in <code>critica</code> as a last resort.
+    See the full <a href="sources.html">Sources &amp; APIs</a> roster for each source's
+    format, policy and rate limit.</p>
+
+  <h2 id="critical-months">Critical months (Z axis)</h2>
+  <p>Months are the third axis: documents keep their <code>mapped_month_iso</code>, and
+    <code>_CRITICAL_MONTHS</code> in the Propositor boosts priority for key events — e.g.
+    <strong>1972-10</strong> (paro de camioneros / trucker strike) and
+    <strong>1973-09</strong> (the coup). See <a href="glossary.html">Glossary</a> for the
+    full timeline.</p>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-propositor.html">Propositor</a>
+    <a href="agent-mapper.html">Mapper</a>
+    <a href="admin.html">Admin Dashboard</a>
+    <a href="glossary.html">Glossary</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

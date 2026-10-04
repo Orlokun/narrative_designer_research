@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Director — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Director</div>
+  <h1>Director <span class="badge real">Real</span></h1>
+  <p class="lede">The runtime orchestrator for the game simulation. A custom, dependency-free
+    graph: one mutable <code>WorldState</code> flows through a sequence of registered async
+    nodes. No LangGraph / CrewAI — an explicit loop with hooks for transitions, errors and
+    checkpoints.</p>
+  <p><strong>Location:</strong> <code>runtime/director/orchestrator.py</code> +
+    <code>runtime/director/world_state.py</code></p>
+
+  <h2>Role in the system</h2>
+  <p>The Director belongs to the <strong>runtime</strong> layer — the eventual game loop,
+    distinct from the research <a href="architecture.html">pipeline</a> that harvests
+    documents. It coordinates the runtime agents (event generator, NPC pool, ledger,
+    logger, registrador), most of which are still <span class="badge stub">Stub</span>.</p>
+
+  <h2>Design notes</h2>
+  <ul>
+    <li><code>WorldState</code> is the single mutable object passed between nodes.</li>
+    <li>Nodes are registered async callables; the orchestrator runs them in order with
+      hooks for transitions, error handling and checkpointing.</li>
+    <li>Deliberately framework-free, to keep the loop explicit and debuggable.</li>
+  </ul>
+
+  <div class="callout pending">
+    <span class="label">⚠ Runtime layer is early</span>
+    <p>The Director exists, but the runtime agents it orchestrates and the game-facing
+      pieces (scenarios, NPC dialogue, metrics) are largely unbuilt or part of the lost
+      work. Tracked on the <a href="roadmap.html">Roadmap</a>.</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agents.html">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

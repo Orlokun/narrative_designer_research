@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propositor (RE-1) — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Propositor</div>
+  <h1>Propositor <span class="id">RE-1</span> <span class="badge real">Real</span></h1>
+  <p class="lede">The Research Engine's mission generator. It scores every cell of the
+    <a href="coverage-matrix.html">16×13×48 matrix</a> by coverage gap × thematic
+    relevance × <strong>genre plausibility</strong> and emits ranked search missions for
+    the <a href="agent-archivero.html">Archivero</a> — plus <strong>entity-driven
+    missions</strong> for characters the <a href="agent-cast-manager.html">Cast
+    Manager</a> flags as needing research.</p>
+  <p><strong>Entry point:</strong> <code>research_engine/propositor/__init__.py</code> →
+    <code>main()</code> · <strong>CLI:</strong> <code>propositor run</code> / <code>status</code></p>
+
+  <h2>What it does</h2>
+  <ul>
+    <li>Reads the 3D <code>coverage</code> table and ranks all 9,984 (theme, genre, month)
+      cells: <code>priority = (1 − score) × category_weight × genre_plausibility</code>
+      (+ critical-month boost). Plausibility priors from <code>lib/genres.py</code> keep
+      structurally-empty pairings (Deporte × Cable diplomático) at the bottom without
+      hard-excluding them.</li>
+    <li>Boosts priority for <code>_CRITICAL_MONTHS</code> (e.g. 1972-10 paro de camioneros,
+      1973-09 coup).</li>
+    <li>Builds queries genre-first: genre term + theme term, theme term, and a
+      month-specific genre query (unique API results per cell).</li>
+    <li>Routes sources <strong>genre-first</strong> (the genre's natural connectors),
+      topped up from the category <a href="coverage-matrix.html">source tier</a>, capped
+      at 6 per mission.</li>
+    <li>Optionally reformulates queries with Ollama (Gemma) for period-appropriate
+      vocabulary; <code>--no-llm</code> skips this.</li>
+    <li>Polls the Cast Manager's <code>needs_research</code> character queue and mints
+      <strong>entity missions</strong> ("research that person") — see below.</li>
+  </ul>
+  <p>Gap missions carry their <code>genre_id</code> (legacy pre-genre missions have NULL →
+    they block only the genre-0 cell, never a real genre cell). Duplicate cleanup keys gap
+    missions by (category, genre, month).</p>
+
+  <h2>Entity-driven missions (Cast Manager wiring)</h2>
+  <p>After the gap pass, each cycle calls <code>fetch_characters_needing_research()</code>
+    (from <code>pipeline.cast_manager</code>) and turns flagged characters into missions with
+    <code>kind = 'entity'</code> and <code>character_id</code> set
+    (<code>build_entity_missions()</code>; ids are prefixed <code>e-</code>). Details:</p>
+  <ul>
+    <li><strong>Priority</strong> = <code>entity_priority(mentions, completeness)</code>:
+      grows with mention count (saturating at 5), shrinks with the character's existing
+      completeness score — comparable to gap priorities (0 to 1).</li>
+    <li><strong>Queries</strong> are deterministic and <strong>seeded on what the cast
+      already knows</strong> (<code>entity_queries(name, aliases, salient_fact)</code>): the
+      exact quoted name + period, a query sharpened by the character's affiliation/role
+      (e.g. <code>"Donald Kendall" president of Pepsi-Cola</code>), and a
+      <strong>distinct alias</strong> to broaden recall — pulled from the research queue
+      (<code>fetch_characters_needing_research</code> returns aliases + the top
+      affiliation fact). No LLM reformulation, since names are exact-match terms.</li>
+    <li><strong>Nominal cell.</strong> Entity missions carry a nominal
+      (category 1, <code>1970-11</code>) to satisfy the missions schema, but the
+      <a href="agent-archivero.html">Archivero</a> skips the coverage-matrix update for
+      <code>kind='entity'</code>, so the matrix is never distorted, and entity missions
+      never block gap generation for their nominal cell.</li>
+    <li><strong>Queue semantics.</strong> Minting (or finding an existing entity mission)
+      clears the character's <code>needs_research</code> flag; characters beyond
+      <code>--entity-limit</code> (default 20, 0 disables) stay flagged for the next cycle.
+      Duplicate cleanup treats entity missions per <code>character_id</code>, not per cell.</li>
+    <li><strong>Focus modes (F3).</strong> <code>--focus mixed</code> (default: gaps +
+      entities, unchanged behaviour) · <code>--focus cells</code> (gap missions only; the
+      research queue stays flagged) · <code>--focus characters</code> (entity missions
+      ONLY, and the queue is reordered <strong>least-complete-first</strong> via
+      <code>order_by_need()</code> instead of most-mentioned-first — the
+      <code>make pipeline-characters</code> mode, trigger <code>characters</code> in run
+      tracking).</li>
+    <li><strong>Location missions.</strong> In mixed mode the Propositor also polls the
+      <a href="agent-location-manager.html">Location Manager</a>'s queue and mints
+      <code>kind='location'</code> missions (<code>--location-limit</code>, default 10,
+      0 disables; ids prefixed <code>l-</code>) with kind-flavoured queries
+      (<code>location_queries</code>: a building searches <em>arquitectura planos</em>, a
+      factory <em>industria producción</em>). Same nominal cell, same attempt/cooldown
+      bounds; duplicate cleanup keys them per <code>location_id</code>.</li>
+    <li><strong>Closed research loop.</strong> Each minted mission is one
+      <strong>attempt</strong> — the Propositor bumps the character's
+      <code>research_attempts</code> and stamps <code>last_research_at</code>. Only
+      <strong>in-flight</strong> (pending/running) entity missions suppress re-minting, and
+      entity duplicate-cleanup keeps the <strong>newest</strong> mission, so a fresh attempt
+      supersedes the character's earlier <em>done</em> mission. The
+      <a href="agent-cast-manager.html">Cast Manager</a> re-flags a still-thin character
+      after its cooldown (<code>should_research</code>: <code>completeness &lt; 0.85</code>
+      under the strict metric, max 5 attempts, 3-day cooldown), so the loop iterates and
+      then rests. Documents a
+      mission harvests are attributed back to the seed via
+      <code>documents.seed_character_id</code>.</li>
+  </ul>
+
+  <h2>Query uniqueness</h2>
+  <p>Every mission includes a month-specific third query
+    (<code>"{category} Chile {month_iso}"</code>) so OpenAlex/CrossRef return different
+    results per month. Without it, all non-critical months of a category produce
+    duplicates and get marked <code>failed</code>.</p>
+
+  <h2>Mission lifecycle</h2>
+  <p>Missions move <code>pending → running → done | failed</code>. Network-only failures
+    reset to <code>pending</code> (retry next cycle). <code>_cleanup_duplicates()</code>
+    runs at cycle start. Full failure semantics on the
+    <a href="architecture.html">Architecture</a> page.</p>
+
+  <h2 id="focus">Common invocations</h2>
+  <pre>make propositor                                   # run --limit 100
+uv run propositor status
+uv run propositor run --retry-failed --no-llm --limit 100   # retry failed missions
+uv run propositor run --entity-limit 0                      # gap missions only
+uv run propositor run --focus characters --entity-limit 30  # entity only, thinnest first
+uv run propositor run --focus cells                         # gap only, queue untouched</pre>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-archivero.html">Archivero</a>
+    <a href="agent-cast-manager.html">Cast Manager</a>
+    <a href="coverage-matrix.html">Coverage Matrix</a>
+    <a href="gatekeeper.html">Gatekeeper</a>
+    <a href="data-model.html">Data Model</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

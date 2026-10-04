@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cast Director — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Cast Director</div>
+  <h1>Cast Director <span class="badge real">Real</span></h1>
+  <p class="lede">Step 8 of the <a href="architecture.html#canonical-pipeline">canonical
+    pipeline</a>. Reads documents and the hard data the <a href="agent-cast-manager.html">Cast
+    Manager</a> has assembled, and extracts the <strong>complex relational layer</strong>
+    around each character.</p>
+
+  <h2>What it does</h2>
+  <p>Where the Cast Manager records facts (who appears, when, in what document), the Cast
+    Director extracts the harder, inferential information:</p>
+  <ul>
+    <li><strong>Affective relations</strong> — friendships, rivalries, conflicts.</li>
+    <li><strong>Familial relations</strong> — family ties.</li>
+    <li><strong>Political affiliations</strong> — parties, factions, ideological alignment.</li>
+    <li><strong>Professional / institutional links</strong> — colleagues, superiors, subordinates.</li>
+    <li><strong>Enemies and adversaries.</strong></li>
+  </ul>
+
+  <h2>Place in the flow</h2>
+  <p>Runs after the <a href="agent-cast-manager.html">Cast Manager</a>: needs both the
+    documents and the Cast Manager's character database / timelines as input. Its output
+    is the relational graph that future runtime agents (NPC dialogue, scenarios) will draw
+    on.</p>
+
+  <h2>Implementation</h2>
+  <p>Lives in <code>pipeline/cast_director/__init__.py</code> (class <code>CastDirector</code>,
+    pure functions, a <code>main()</code> CLI). Persists to the
+    <a href="data-model.html#cast">character_relations table</a>.</p>
+  <table>
+    <tr><th>Decision</th><th>Resolved as</th></tr>
+    <tr><td>Schema</td><td>A directed <code>character_relations</code> table —
+      <code>(source_character_id, target_character_id, kind, description, confidence,
+      mention_count, provenance)</code>, <code>UNIQUE(source, target, kind)</code> — plus a
+      <code>relations_extracted_at</code> stamp on <code>documents</code> (self-terminating,
+      like the Cast Manager).</td></tr>
+    <tr><td>LLM strategy</td><td><strong>Per document</strong>, mirroring the Cast Manager:
+      each verified, mapped doc is read once (Gemma, <code>--no-llm</code> = stamp-only
+      no-op) and the relations it states are extracted, <strong>grounded in the people the
+      Cast Manager already linked to that document</strong>.</td></tr>
+    <tr><td>Relation kinds</td><td>Canonical set: <code>familia</code>, <code>aliado</code>,
+      <code>colega</code>, <code>rival</code>, <code>enemigo</code>, <code>afiliacion</code>
+      (symmetric); <code>superior</code>, <code>mentor</code> (directed); <code>contraparte</code>, <code>otro</code>.
+      A bilingual map normalises surface kinds; inverse kinds (subordinate, student) flip
+      into their directed counterpart. Symmetric pairs are stored ordered so A–B and B–A
+      collapse to one row.</td></tr>
+    <tr><td>Endpoint resolution</td><td>Both people must already be in the cast — names are
+      resolved to <code>character_id</code> with the Cast Manager's coreference
+      (<code>resolve_character_key</code>); a relation whose endpoint is unknown is skipped
+      (counted as <code>unresolved</code>), and self-relations are dropped.</td></tr>
+    <tr><td>Political refinement (backlog #3)</td><td>When both endpoints have a
+      <a href="agent-cast-manager.html">compass position</a>, a claimed
+      <code>afiliacion</code> between ideologically distant figures is corrected to
+      <code>contraparte</code> on upsert (Kissinger↔Allende are not "afiliados"). The
+      prompt also forbids "political" for opponents. Pure logic in
+      <code>lib/politics.py</code> (<code>refine_relation_kind</code>).</td></tr>
+    <tr><td>Provenance &amp; confidence</td><td>Every relation carries the <code>provenance</code>
+      list of doc_ids that justify it. <strong>Conflict resolution = accumulate evidence</strong>:
+      re-seeing a relation appends the doc and raises <code>confidence = min(1, docs/3)</code>
+      rather than overwriting; the richest description is kept.</td></tr>
+  </table>
+
+  <h3>CLI</h3>
+  <pre><code>uv run cast-director run [--batch 50] [--all] [--no-llm]
+uv run cast-director status</code></pre>
+  <p>Runs after the Cast Manager in every pipeline target. Records a
+    <code>cast_director</code> stage against the active <code>run_id</code>.</p>
+
+  <div class="callout pending">
+    <span class="label">⚠ Still to come</span>
+    <ul>
+      <li>Associated institutions / groups per character.</li>
+    </ul>
+    <p><strong>Done:</strong> the admin <strong>Cast Director page</strong> at
+      <code>/cast-director</code> (network graph with arrowheads, an <strong>edge hover
+      label</strong> — native tooltip naming both characters, the relation kind, confidence
+      and its description — plus a click-through edge detail panel and kind/confidence
+      filters — backlog #5); per-character relations on the
+      <a href="agent-cast-manager.html">Cast Manager</a> detail; and the
+      <strong>political refinement</strong> of relation kinds (<code>contraparte</code>,
+      backlog #3).</p>
+  </div>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-cast-manager.html">Cast Manager</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="roadmap.html">Roadmap</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

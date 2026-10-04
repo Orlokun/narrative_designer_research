@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archivero (Ag-1) — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Archivero</div>
+  <h1>Archivero <span class="id">Ag-1</span> <span class="badge real">Real</span></h1>
+  <p class="lede">Fetches documents for each mission through the
+    <a href="gatekeeper.html">Gatekeeper</a>, extracts clean text, deduplicates by
+    SHA-256, and writes the <code>documents</code> table.</p>
+  <p><strong>Entry point:</strong> <code>pipeline/archivero/__init__.py</code> →
+    <code>main()</code> · <strong>CLI:</strong> <code>archivero run</code> /
+    <code>status</code> / <code>export</code></p>
+
+  <h2>Source routing</h2>
+  <table>
+    <tr><th>Path</th><th>Sources</th><th>Extraction</th></tr>
+    <tr><td>JSON API (<code>_JSON_SOURCES</code>)</td><td>archive.org, openalex, crossref, semantic_scholar, chronicling_america, wikipedia_es</td><td>Dedicated extractor in <code>_JSON_EXTRACTORS</code>.</td></tr>
+    <tr><td>Multi-step (special-cased in <code>run_cycle</code>)</td><td>wikisource_es (search→parse), frus (sequential doc pages), marxists (index crawl), <strong>foia_chile</strong> (JSON search → PDF → pypdf OCR)</td><td>Per-source helpers; foia_chile fetches binary PDFs through the Gatekeeper (<code>_gatekeeper_fetch_binary</code>, base64) and extracts the OCR text layer (<code>_pdf_extract_text</code>), keeping declassification metadata in a header (<code>_foia_document_text</code>).</td></tr>
+    <tr><td>HTML</td><td>bn_digital, web_serp</td><td>trafilatura (80-char minimum applies here only).</td></tr>
+  </table>
+  <ul>
+    <li><code>_ERROR_PATTERNS</code> rejects known bot-challenge / error pages before insertion.</li>
+    <li><code>foia_chile</code> caps PDFs per query (<code>_FOIA_MAX_DOCS_PER_QUERY</code> = 5) —
+      the API ignores its limit parameter and returns 20 results per page; each result costs a
+      PDF download. Docs whose OCR layer yields &lt; 80 chars are skipped.</li>
+  </ul>
+
+  <h2>Deduplication &amp; identity</h2>
+  <p>Documents are deduplicated by SHA-256 (<code>UNIQUE INDEX idx_doc_sha256</code>).
+    <code>doc_id</code> = first 16 hex chars of the sha256. A duplicate still counts the
+    mission as <strong>DONE</strong>.</p>
+
+  <h2>Mission outcome logic</h2>
+  <table>
+    <tr><th>Outcome</th><th>Condition</th></tr>
+    <tr><td><strong>DONE</strong></td><td>≥ 1 document found (new or duplicate).</td></tr>
+    <tr><td><strong>PENDING</strong> (reset)</td><td>All fetches failed at network level (timeout/5xx) — retried next cycle.</td></tr>
+    <tr><td><strong>FAILED</strong></td><td>Sources reachable but no extractable content.</td></tr>
+  </table>
+
+  <h2>Coverage upsert</h2>
+  <p>After each DONE mission, Archivero upserts the cell's score into the
+    <code>coverage</code> table (<code>_upsert_coverage_score</code>): <code>coverage_score
+    = min(1.0, docs_found / 5)</code>. The <a href="agent-mapper.html">Mapper</a> later
+    refines cell assignment per document.</p>
+
+  <h2>Common invocations</h2>
+  <pre>make archivero                  # run --batch 50 --missions 200
+uv run archivero status
+uv run archivero export         # write data/documents.json (derived view)</pre>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-propositor.html">Propositor</a>
+    <a href="agent-verificator.html">Verificator</a>
+    <a href="gatekeeper.html">Gatekeeper</a>
+    <a href="data-model.html">Data Model</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>

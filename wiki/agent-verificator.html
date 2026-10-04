@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificator (Ag-2) — Research Engine Wiki</title>
+<link rel="stylesheet" href="assets/wiki.css">
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><span class="node"></span>Research Engine · Wiki</a>
+  <nav class="top">
+    <a href="index.html">Home</a>
+    <a href="rules.html">Rules</a>
+    <a href="platform.html">Platform</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="agents.html" class="here">Agents</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="coverage-matrix.html">Matrix</a>
+    <a href="commands.html">Commands</a>
+    <a href="admin.html">Admin</a>
+    <a href="glossary.html">Glossary</a>
+    <a href="roadmap.html">Roadmap</a>
+  </nav>
+</header>
+
+<main>
+  <div class="crumb"><a href="index.html">Home</a> › <a href="agents.html">Agents</a> › Verificator</div>
+  <h1>Verificator <span class="id">Ag-2</span> <span class="badge real">Real</span></h1>
+  <p class="lede">Quality-scores each fetched document and gates which ones are kept. Also
+    hosts the <strong>Cleaner</strong>, which prunes documents that failed verification.</p>
+  <p><strong>Entry point:</strong> <code>pipeline/verificator/__init__.py</code> →
+    <code>main()</code> · <strong>CLI:</strong> <code>verificator run</code> /
+    <code>status</code> / <code>clean</code></p>
+
+  <h2>Scoring: <code>score_document(text, title) → float [0.0–1.0]</code></h2>
+  <p>A pure function (tested in <code>tests/test_verificator.py</code>). Weighted signals:</p>
+  <table>
+    <tr><th>Component</th><th>Max</th><th>Signal</th></tr>
+    <tr><td>Length</td><td>0.20</td><td><code>min(text_len / 1000, 1) × 0.20</code></td></tr>
+    <tr><td>Chilean keywords</td><td>0.45</td><td>unique keyword hits × 0.08, capped</td></tr>
+    <tr><td>Period years (1969–1973)</td><td>0.25</td><td>year hits × 0.08, capped</td></tr>
+    <tr><td>Spanish language</td><td>0.10</td><td>≥ 3 Spanish function words present</td></tr>
+  </table>
+  <p><strong>Hard rejects (score = 0.0):</strong> texts shorter than
+    <code>MIN_DOCUMENT_LENGTH</code> (100 chars) or matching <code>_REJECT_PATTERNS</code>.</p>
+  <p><strong>Threshold (canonical): 0.6.</strong> A document passes if its score is
+    <strong>≥ 0.6</strong> and gets a <code>verified_at</code> timestamp; below 0.6 the
+    <a href="#cleaner">Cleaner</a> drops it. <em>Note: the current code still defaults to
+    <code>min_score = 0.6</code> is the code default since June 2026, and the Cleaner runs 
+    automatically after verification in every pipeline target. </em></p>
+
+  <h2 id="cleaner">The Cleaner (<code>_clean_rejected</code>)</h2>
+  <p>Invoked via <code>verificator clean</code> / <code>make cleaner</code>. It runs:</p>
+  <pre>DELETE FROM documents WHERE quality_score IS NOT NULL AND verified_at IS NULL</pre>
+  <ul>
+    <li>Removes documents that <strong>failed</strong> verification (scored, but below threshold).</li>
+    <li>Keeps <strong>unscored</strong> rows (<code>quality_score IS NULL</code>) — retried next run.</li>
+    <li>Keeps <strong>verified</strong> rows (<code>verified_at IS NOT NULL</code>).</li>
+    <li><code>make cleaner-dry-run</code> previews deletions without removing anything.</li>
+  </ul>
+  <p>Tested in <code>tests/test_cleaner.py</code>.</p>
+
+  <h2>Common invocations</h2>
+  <pre>make verificator          # run --batch 200
+make verify-queue         # loop until the queue is drained
+make cleaner-dry-run      # preview rejections
+uv run verificator status</pre>
+
+  <div class="related">
+    <div class="label">Related</div>
+    <a href="agent-archivero.html">Archivero</a>
+    <a href="agent-mapper.html">Mapper</a>
+    <a href="data-model.html">Data Model</a>
+    <a href="commands.html">Commands</a>
+  </div>
+</main>
+
+<footer class="foot">Research Engine · project wiki · source of truth — read before, update after.</footer>
+</body>
+</html>
